@@ -127,7 +127,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         const Divider(height: 20),
                         _buildProfileInfoRow('Class & Section', '10th - A'),
                         const Divider(height: 20),
-                        _buildProfileInfoRow("Parent's Email", 'parent@example.com'),
+                        _buildProfileInfoRow(
+                            "Parent's Email", 'parent@example.com'),
                       ],
                     ),
                   ),
@@ -276,14 +277,14 @@ class _ProfilePageState extends State<ProfilePage> {
             color: Colors.blue.shade50,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: color ?? Colors.blue.shade700),
+          child: Icon(icon, color: color),
         ),
         title: Text(
           title,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            color: color ?? Colors.black87,
+            color: color,
           ),
         ),
         trailing: Icon(Icons.arrow_forward_ios,

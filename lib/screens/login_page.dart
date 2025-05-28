@@ -94,7 +94,7 @@ class _LoginPageState extends State<LoginPage> {
           /* Backend TODO: Authenticate student login (API call, session/token management) */
           await authService.loginStudent(_idController.text.trim());
           if (mounted) {
-            Navigator.pushReplacementNamed(context, '/payment');
+            Navigator.pushReplacementNamed(context, '/welcome_page');
           }
           break;
 
