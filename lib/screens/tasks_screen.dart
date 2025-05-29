@@ -258,7 +258,7 @@ class TasksScreenState extends State<TasksScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => const QuizScreen(),
+            builder: (context) => const STTKeywordMatcher(),
           ),
         );
       } else {

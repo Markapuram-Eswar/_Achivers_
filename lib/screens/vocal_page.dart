@@ -1,500 +1,509 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:flutter_tts/flutter_tts.dart';
-import 'package:confetti/confetti.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'dart:async';
+import 'package:lottie/lottie.dart';
+import 'package:confetti/confetti.dart';
 
-class QuizScreen extends StatefulWidget {
-  const QuizScreen({Key? key}) : super(key: key);
-
-  @override
-  _QuizScreenState createState() => _QuizScreenState();
+void main() {
+  runApp(const MaterialApp(home: STTKeywordMatcher()));
 }
 
-class _QuizScreenState extends State<QuizScreen> {
-  final stt.SpeechToText _speech = stt.SpeechToText();
-  final FlutterTts _tts = FlutterTts();
-  final ConfettiController _confettiController =
-      ConfettiController(duration: const Duration(seconds: 3));
-  bool _isListening = false;
-  String _transcribedText = '';
-  int _score = 0;
-  int _questionIndex = 0;
-  String _feedback = '';
-  bool _quizCompleted = false;
-  String _userNotes = '';
-  bool _isInitialized = false;
+class Question {
+  final String text;
+  final List<String> keywords;
+  final String note;
 
-  final List<Map<String, dynamic>> _questions = [
-    {
-      'question': 'Name five European countries.',
-      'keywords': ['france', 'germany', 'italy', 'spain', 'sweden'],
-      'maxScore': 5,
-      'hint': 'Think about major countries in Western Europe',
-    },
-    {
-      'question': 'Name three more European countries.',
-      'keywords': ['portugal', 'netherlands', 'belgium'],
-      'maxScore': 3,
-      'hint': 'Consider countries in the Benelux region',
-    },
-  ];
+  Question({
+    required this.text,
+    required this.keywords,
+    required this.note,
+  });
+}
+
+class STTKeywordMatcher extends StatefulWidget {
+  const STTKeywordMatcher({super.key});
+
+  @override
+  State<STTKeywordMatcher> createState() => _STTKeywordMatcherState();
+}
+
+class _STTKeywordMatcherState extends State<STTKeywordMatcher> {
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+  String _paragraph = '';
+  String _selectedLanguage = 'en-US';
+  late ConfettiController _confettiController;
 
   @override
   void initState() {
     super.initState();
-    _initializeServices();
+    _confettiController =
+        ConfettiController(duration: const Duration(seconds: 2));
   }
 
-  Future<void> _initializeServices() async {
-    await _initializeSpeech();
-    await _initializeTts();
-    setState(() => _isInitialized = true);
-    _speakQuestion();
-  }
+  final Map<String, String> _languages = {
+    'English': 'en-US',
+    'Telugu': 'te-IN',
+    'Hindi': 'hi-IN',
+    'Tamil': 'ta-IN',
+    'Malayalam': 'ml-IN',
+    'Kannada': 'kn-IN',
+  };
 
-  Future<void> _initializeSpeech() async {
-    try {
-      bool available = await _speech.initialize(
-        onStatus: (status) =>
-            setState(() => _isListening = status == 'listening'),
-        onError: (error) => _showError('Speech Error: $error'),
-      );
-      if (!available) {
-        _showError('Speech recognition not available');
-      }
-    } catch (e) {
-      _showError('Error initializing speech: $e');
-    }
-  }
+  final List<Question> questions = [
+    Question(
+      text: 'Explain photosynthesis.',
+      keywords: [
+        'photosynthesis',
+        'sunlight',
+        'carbon dioxide',
+        'plants',
+        'leaves',
+        'oxygen',
+        'ఫోటోసింథసిస్',
+        'సూర్యరశ్మి',
+        'కార్బన్ డయాక్సైడ్',
+        'చెట్లు',
+        'ఆకు',
+        'ఆక్సిజన్',
+        'प्रकाश संश्लेषण',
+        'सूरज की रोशनी',
+        'कार्बन डाइऑक्साइड',
+        'पौधे',
+        'पत्ते',
+        'ऑक्सीजन',
+      ],
+      note: 'Hint: Think about sunlight, plants, and oxygen.',
+    ),
+    Question(
+      text: 'Describe the water cycle.',
+      keywords: [
+        'evaporation',
+        'condensation',
+        'precipitation',
+        'water vapor',
+        'clouds',
+        'rain',
+        'వేసవి ఆవిరి',
+        'మేఘాలు',
+        'వర్షం',
+        'वाष्पीकरण',
+        'संघनन',
+        'वृष्टि',
+      ],
+      note: 'Remember evaporation, condensation, precipitation.',
+    ),
+  ];
 
-  Future<void> _initializeTts() async {
-    try {
-      await _tts.setLanguage('en-US');
-      await _tts.setSpeechRate(0.5);
-      await _tts.setPitch(1.0);
-    } catch (e) {
-      _showError('Error initializing TTS: $e');
-    }
-  }
+  int _selectedQuestionIndex = 0;
+  List<String> matchedKeywords = [];
+  List<String> missedKeywords = [];
+  double matchPercentage = 0.0;
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  Future<void> _speakQuestion() async {
-    if (_questionIndex < _questions.length) {
-      await _tts.speak(_questions[_questionIndex]['question']);
-    }
-  }
-
-  void _toggleListening() async {
-    if (_isListening) {
-      _speech.stop();
-      _evaluateAnswer();
-    } else {
+  void _startListening() async {
+    bool available = await _speech.initialize();
+    if (available) {
       setState(() {
-        _transcribedText = '';
-        _feedback = '';
+        _isListening = true;
+        _paragraph = '';
+        matchedKeywords = [];
+        missedKeywords = [];
+        matchPercentage = 0.0;
       });
       _speech.listen(
-        onResult: (result) =>
-            setState(() => _transcribedText = result.recognizedWords),
+        onResult: (result) {
+          setState(() {
+            _paragraph = result.recognizedWords;
+          });
+        },
+        listenMode: stt.ListenMode.dictation,
+        partialResults: true,
+        localeId: _selectedLanguage,
       );
     }
   }
 
-  void _evaluateAnswer() {
-    if (_transcribedText.isEmpty) {
-      setState(() => _feedback = 'No answer provided.');
-      return;
+  void _stopListening() async {
+    await _speech.stop();
+    setState(() {
+      _isListening = false;
+    });
+    matchKeywords(_paragraph, questions[_selectedQuestionIndex].keywords);
+  }
+
+  void matchKeywords(String input, List<String> keywords) {
+    final lowerInput = input.toLowerCase();
+    final matched = <String>[];
+    final missed = <String>[];
+
+    for (final keyword in keywords) {
+      if (lowerInput.contains(keyword.toLowerCase())) {
+        matched.add(keyword);
+      } else {
+        missed.add(keyword);
+      }
     }
 
-    final keywords = _questions[_questionIndex]['keywords'] as List<String>;
-    final maxScore = _questions[_questionIndex]['maxScore'] as int;
-    int matches = 0;
-    String lowercaseText = _transcribedText.toLowerCase();
-
-    for (String keyword in keywords) {
-      if (lowercaseText.contains(keyword)) matches++;
-    }
+    final percentage =
+        keywords.isNotEmpty ? (matched.length / keywords.length) * 100 : 0.0;
 
     setState(() {
-      _score += matches;
-      _feedback = 'You got $matches out of $maxScore correct!';
-      if (matches >= maxScore * 0.8) _confettiController.play();
+      matchedKeywords = matched;
+      missedKeywords = missed;
+      matchPercentage = percentage;
     });
 
-    Timer(const Duration(seconds: 2), () {
-      setState(() {
-        _questionIndex++;
-        if (_questionIndex < _questions.length) {
-          _speakQuestion();
-        } else {
-          _quizCompleted = true;
-          _tts.speak('Quiz completed! Your final score is $_score.');
-          _confettiController.play();
-        }
-      });
-    });
+    if (percentage >= 70) {
+      _confettiController.play();
+    }
   }
 
   @override
   void dispose() {
     _speech.stop();
-    _tts.stop();
     _confettiController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_isInitialized) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
+    final currentQuestion = questions[_selectedQuestionIndex];
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.blue[700]!,
-              Colors.purple[700]!,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  _buildAppBar(),
-                  Expanded(
-                    child: _quizCompleted ? _buildScoreboard() : _buildQuiz(),
-                  ),
+      body: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.blue[100]!,
+                  Colors.purple[50]!,
                 ],
               ),
-              Align(
-                alignment: Alignment.topCenter,
-                child: ConfettiWidget(
-                  confettiController: _confettiController,
-                  blastDirectionality: BlastDirectionality.explosive,
-                  particleDrag: 0.05,
-                  emissionFrequency: 0.05,
-                  numberOfParticles: 50,
-                  gravity: 0.05,
-                  colors: const [
-                    Colors.red,
-                    Colors.blue,
-                    Colors.yellow,
-                    Colors.purple,
-                    Colors.orange,
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Speech Learning',
+                          style: GoogleFonts.poppins(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[900],
+                          ),
+                        ).animate().fadeIn().slideX(),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Question selector card
+                    Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Select Question:',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<int>(
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              value: _selectedQuestionIndex,
+                              items: List.generate(
+                                questions.length,
+                                (index) => DropdownMenuItem(
+                                  value: index,
+                                  child: Text(
+                                    questions[index].text,
+                                    style: GoogleFonts.poppins(),
+                                  ),
+                                ),
+                              ),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() {
+                                    _selectedQuestionIndex = value;
+                                    _paragraph = '';
+                                    matchedKeywords = [];
+                                    missedKeywords = [];
+                                    matchPercentage = 0.0;
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ).animate().fadeIn().slideY(),
+
+                    const SizedBox(height: 16),
+
+                    // Hint card
+                    Card(
+                      elevation: 4,
+                      color: Colors.amber[50],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Icon(Icons.lightbulb, color: Colors.amber[700]),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                currentQuestion.note,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.amber[900],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ).animate().fadeIn().slideY(delay: 200.ms),
+
+                    const SizedBox(height: 16),
+
+                    // Language selector
+                    Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Select Language:',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<String>(
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              value: _selectedLanguage,
+                              items: _languages.entries
+                                  .map(
+                                    (entry) => DropdownMenuItem<String>(
+                                      value: entry.value,
+                                      child: Text(
+                                        entry.key,
+                                        style: GoogleFonts.poppins(),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() {
+                                    _selectedLanguage = value;
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ).animate().fadeIn().slideY(delay: 400.ms),
+
+                    const SizedBox(height: 16),
+
+                    // Speech recognition area
+                    Expanded(
+                      child: Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Stack(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              width: double.infinity,
+                              child: SingleChildScrollView(
+                                child: Text(
+                                  _paragraph.isEmpty
+                                      ? 'Start speaking...'
+                                      : _paragraph,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    color: _paragraph.isEmpty
+                                        ? Colors.grey
+                                        : Colors.black87,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (_isListening)
+                              Positioned(
+                                right: 16,
+                                top: 16,
+                                child: Lottie.network(
+                                  'https://assets2.lottiefiles.com/packages/lf20_oCue1F.json',
+                                  width: 40,
+                                  height: 40,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ).animate().fadeIn().slideY(delay: 600.ms),
+
+                    const SizedBox(height: 16),
+
+                    // Action button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed:
+                            _isListening ? _stopListening : _startListening,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              _isListening ? Colors.red : Colors.blue,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(_isListening ? Icons.stop : Icons.mic),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isListening
+                                  ? 'Stop Recording'
+                                  : 'Start Speaking',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ).animate().fadeIn().slideY(delay: 800.ms),
+
+                    if (matchedKeywords.isNotEmpty ||
+                        missedKeywords.isNotEmpty) ...[
+                      const SizedBox(height: 20),
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Text(
+                                'Score: ${matchPercentage.toStringAsFixed(1)}%',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: matchPercentage >= 70
+                                      ? Colors.green
+                                      : Colors.orange,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              if (matchedKeywords.isNotEmpty)
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: matchedKeywords
+                                      .map(
+                                        (keyword) => Chip(
+                                          label: Text(
+                                            keyword,
+                                            style: GoogleFonts.poppins(
+                                                color: Colors.white),
+                                          ),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              if (missedKeywords.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: missedKeywords
+                                      .map(
+                                        (keyword) => Chip(
+                                          label: Text(
+                                            keyword,
+                                            style: GoogleFonts.poppins(
+                                                color: Colors.white),
+                                          ),
+                                          backgroundColor: Colors.red[300],
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ).animate().fadeIn().slideY(),
+                    ],
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAppBar() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
-          const Expanded(
-            child: Text(
-              'Voice Quiz',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.help_outline, color: Colors.white),
-            onPressed: () => _showHint(),
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: pi / 2,
+              maxBlastForce: 5,
+              minBlastForce: 2,
+              emissionFrequency: 0.05,
+              numberOfParticles: 50,
+              gravity: 0.1,
+            ),
           ),
         ],
       ),
-    );
-  }
-
-  void _showHint() {
-    if (_questionIndex >= _questions.length) return;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hint'),
-        content: Text(_questions[_questionIndex]['hint'] as String),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got it'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuiz() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          _buildQuestionCard(),
-          const SizedBox(height: 24),
-          _buildMicButton(),
-          const SizedBox(height: 24),
-          _buildTranscriptionCard(),
-          const SizedBox(height: 24),
-          _buildFeedbackCard(),
-          const SizedBox(height: 24),
-          _buildNotesCard(),
-        ].animate(interval: 200.ms).fadeIn().slideY(),
-      ),
-    );
-  }
-
-  Widget _buildQuestionCard() {
-    return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Text(
-              'Question ${_questionIndex + 1}',
-              style: TextStyle(
-                color: Colors.blue[700],
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _questions[_questionIndex]['question'],
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMicButton() {
-    return GestureDetector(
-      onTap: _toggleListening,
-      child: Container(
-        width: 120,
-        height: 120,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: _isListening ? Colors.red : Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.2),
-              blurRadius: 10,
-              spreadRadius: 5,
-            ),
-          ],
-        ),
-        child: Icon(
-          _isListening ? Icons.mic : Icons.mic_none,
-          size: 50,
-          color: _isListening ? Colors.white : Colors.blue[700],
-        ),
-      )
-          .animate(onPlay: (controller) => controller.repeat())
-          .shimmer(duration: 1500.ms, color: Colors.white.withOpacity(0.5)),
-    );
-  }
-
-  Widget _buildTranscriptionCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Text(
-              'Your Answer',
-              style: TextStyle(
-                color: Colors.blue[700],
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _transcribedText.isEmpty
-                  ? 'Speak your answer...'
-                  : _transcribedText,
-              style: TextStyle(
-                fontSize: 16,
-                color: _transcribedText.isEmpty ? Colors.grey : Colors.black,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFeedbackCard() {
-    if (_feedback.isEmpty) return const SizedBox.shrink();
-
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      color: Colors.green[50],
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Text(
-          _feedback,
-          style: const TextStyle(
-            fontSize: 18,
-            color: Colors.green,
-            fontWeight: FontWeight.bold,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotesCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: TextField(
-          decoration: InputDecoration(
-            labelText: 'Add Notes',
-            labelStyle: TextStyle(color: Colors.blue[700]),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(15),
-              borderSide: BorderSide(color: Colors.blue[700]!, width: 2),
-            ),
-          ),
-          maxLines: 3,
-          onChanged: (value) => setState(() => _userNotes = value),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScoreboard() {
-    return Center(
-      child: Card(
-        elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                '🎉 Quiz Completed! 🎉',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Your Score',
-                style: TextStyle(
-                  fontSize: 20,
-                  color: Colors.blue[700],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '$_score',
-                style: const TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
-              if (_userNotes.isNotEmpty) ...[
-                const Text(
-                  'Your Notes',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _userNotes,
-                  style: const TextStyle(fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-              ],
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _questionIndex = 0;
-                    _score = 0;
-                    _quizCompleted = false;
-                    _feedback = '';
-                    _transcribedText = '';
-                    _userNotes = '';
-                  });
-                  _speakQuestion();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[700],
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-                child: const Text(
-                  'Try Again',
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ).animate().scale().fadeIn(),
     );
   }
 }

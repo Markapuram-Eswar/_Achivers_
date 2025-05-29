@@ -1,22 +1,71 @@
 import 'package:flutter/material.dart';
+import 'fetch_student_details_screen.dart';
 
-class StudentDetailsScreen extends StatelessWidget {
-  final String className;
-  final String section;
-  final List<Map<String, String>> students;
+class StudentDetailsScreen extends StatefulWidget {
+  const StudentDetailsScreen({super.key});
 
-  const StudentDetailsScreen({
-    super.key,
-    required this.className,
-    required this.section,
-    required this.students,
-  });
+  @override
+  State<StudentDetailsScreen> createState() => _StudentDetailsScreenState();
+}
+
+class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
+  final List<String> _classes = List.generate(12, (index) => 'Class ${index + 1}');
+  final List<String> _sections = ['A', 'B', 'C', 'D'];
+  
+  String? _selectedClass;
+  String? _selectedSection;
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, String>> _students = [];
+  List<Map<String, String>> _filteredStudents = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with dummy data for demonstration
+    _initializeDummyData();
+  }
+
+  void _initializeDummyData() {
+    _students = List.generate(30, (index) => {
+      'name': 'Student ${index + 1}',
+      'rollNumber': '${index + 1}',
+      'parentName': 'Parent ${index + 1}',
+      'contact': '98765432${index.toString().padLeft(2, '0')}'
+    });
+    _filteredStudents = List.from(_students);
+  }
+
+  void _filterStudents(String query) {
+    setState(() {
+      _filteredStudents = _students
+          .where((student) =>
+              student['rollNumber']!.toLowerCase().contains(query.toLowerCase()) ||
+              student['name']!.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    });
+  }
+
+  void _navigateToFetchScreen() {
+    if (_selectedClass == null || _selectedSection == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select both class and section')),
+      );
+      return;
+    }
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const FetchStudentDetailsScreen(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('$className - Section $section'),
+        title: const Text('Student Details'),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -24,41 +73,144 @@ class StudentDetailsScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16.0),
-        itemCount: students.length,
-        itemBuilder: (context, index) {
-          final student = students[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12.0),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Colors.blue[100],
-                child: Text(
-                  student['name']!.substring(0, 1).toUpperCase(),
-                  style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                // Class and Section Selection
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedClass,
+                        decoration: const InputDecoration(
+                          labelText: 'Select Class',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _classes.map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedClass = newValue;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedSection,
+                        decoration: const InputDecoration(
+                          labelText: 'Section',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: _sections.map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedSection = newValue;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              title: Text(
-                student['name']!,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Roll No: ${student['rollNumber']}'),
-                  Text('Parent: ${student['parentName']}'),
-                  Text('Contact: ${student['contact']}'),
-                ],
-              ),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                // Navigate to individual student details if needed
-              },
+                const SizedBox(height: 16),
+                // Search Bar
+                TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    labelText: 'Search by Roll No or Name',
+                    prefixIcon: const Icon(Icons.search),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              _searchController.clear();
+                              _filterStudents('');
+                            },
+                          )
+                        : null,
+                  ),
+                  onChanged: _filterStudents,
+                ),
+                const SizedBox(height: 16),
+                // Fetch Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _navigateToFetchScreen,
+                    icon: const Icon(Icons.download),
+                    label: const Text('Fetch Student Details'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+          const Divider(height: 1),
+          // Student List
+          Expanded(
+            child: _filteredStudents.isEmpty
+                ? const Center(
+                    child: Text('No students found'),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    itemCount: _filteredStudents.length,
+                    itemBuilder: (context, index) {
+                      final student = _filteredStudents[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12.0),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.blue[100],
+                            child: Text(
+                              student['name']!.substring(0, 1).toUpperCase(),
+                              style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          title: Text(
+                            student['name']!,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Roll No: ${student['rollNumber']}'),
+                              Text('Contact: ${student['contact']}'),
+                            ],
+                          ),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                          onTap: () {
+                            // Navigate to individual student details if needed
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 }

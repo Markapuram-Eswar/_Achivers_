@@ -206,33 +206,14 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           Icons.people,
           Colors.teal[400]!,
           onTap: () {
-            // Sample data - replace with actual data from your backend
-            final students = [
-              {
-                'name': 'Rahul Sharma',
-                'rollNumber': '101',
-                'parentName': 'Mr. Amit Sharma',
-                'contact': '9876543210',
-              },
-              {
-                'name': 'Priya Patel',
-                'rollNumber': '102',
-                'parentName': 'Mrs. Meera Patel',
-                'contact': '8765432109',
-              },
-              // Add more sample students as needed
-            ];
-
+            // Student data is now handled within StudentDetailsScreen
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => StudentDetailsScreen(
-                  className: '10th',
-                  section: 'A',
-                  students: students,
-                ),
+                builder: (context) => const StudentDetailsScreen(),
               ),
             );
+            // Note: The StudentDetailsScreen now handles student data internally
           },
         ),
       ],
