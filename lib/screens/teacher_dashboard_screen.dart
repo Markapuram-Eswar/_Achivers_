@@ -4,6 +4,7 @@ import 'grade_assignments_screen.dart';
 import 'schedule_event_screen.dart';
 import 'create_test_screen.dart';
 import 'teacher_profile_page.dart';
+import 'student_details_screen.dart';
 
 void main() {
   runApp(const MaterialApp(
@@ -194,6 +195,42 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) => const CreateTestScreen(),
+              ),
+            );
+          },
+        ),
+
+        // Fourth Row - Student Details
+        _buildActionCard(
+          'Student Details',
+          Icons.people,
+          Colors.teal[400]!,
+          onTap: () {
+            // Sample data - replace with actual data from your backend
+            final students = [
+              {
+                'name': 'Rahul Sharma',
+                'rollNumber': '101',
+                'parentName': 'Mr. Amit Sharma',
+                'contact': '9876543210',
+              },
+              {
+                'name': 'Priya Patel',
+                'rollNumber': '102',
+                'parentName': 'Mrs. Meera Patel',
+                'contact': '8765432109',
+              },
+              // Add more sample students as needed
+            ];
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => StudentDetailsScreen(
+                  className: '10th',
+                  section: 'A',
+                  students: students,
+                ),
               ),
             );
           },

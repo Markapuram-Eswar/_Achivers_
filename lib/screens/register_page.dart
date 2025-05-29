@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../services/registration_service.dart';
 import 'login_page.dart';
+import 'payment_screen.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -56,41 +57,38 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       final registrationService = RegistrationService();
 
-      switch (_selectedRole) {
-        case 0: // Student
-          /* Backend TODO: Register student (API call, database write) */
-          await registrationService.registerStudent(
-            rollNumber: _rollNumberController.text.trim(),
-            name: _nameController.text.trim(),
-            className: _classController.text.trim(),
-            section: _sectionController.text.trim(),
-            parentEmail: _emailController.text.trim().isNotEmpty
-                ? _emailController.text.trim()
-                : null,
-          );
-          break;
+      if (_selectedRole == 0) { // Student
+        // Show payment screen first
+        final paymentResult = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(builder: (context) => const PaymentScreen()),
+        );
+        
+        if (paymentResult != true) {
+          setState(() => _isLoading = false);
+          return;
+        }
 
-        case 1: // Teacher
-          /* Backend TODO: Register teacher (API call, database write) */
-          await registrationService.registerTeacher(
-            employeeId: _employeeIdController.text.trim(),
-            name: _nameController.text.trim(),
-            department: _departmentController.text.trim(),
-          );
-          break;
-
-        case 2: // Parent
-          /* Backend TODO: Register parent (API call, database write) */
-          await registrationService.registerParent(
-            name: _nameController.text.trim(),
-            phone: _phoneController.text.trim(),
-            childRollNumber: _childRollNumberController.text.trim(),
-          );
-          break;
+        // After payment, complete registration
+        await registrationService.registerStudent(
+          rollNumber: _rollNumberController.text.trim(),
+          name: _nameController.text.trim(),
+          className: _classController.text.trim(),
+          section: _sectionController.text.trim(),
+          parentEmail: _emailController.text.trim().isNotEmpty
+              ? _emailController.text.trim()
+              : null,
+        );
+      } else { // Parent
+        await registrationService.registerParent(
+          name: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          childRollNumber: _childRollNumberController.text.trim(),
+        );
       }
 
-      Fluttertoast.showToast(msg: 'Registration successful!');
-
+      Fluttertoast.showToast(msg: 'Registration successful! Please log in.');
+      
       // Navigate back to login
       if (mounted) {
         Navigator.pushReplacement(
@@ -99,7 +97,6 @@ class _RegisterPageState extends State<RegisterPage> {
         );
       }
     } catch (e) {
-      /* Backend TODO: Handle registration error responses from backend */
       Fluttertoast.showToast(
         msg: 'Registration failed: $e',
         backgroundColor: Colors.red,
@@ -145,23 +142,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildTeacherForm() {
-    return Column(
-      children: [
-        _buildTextField('Employee ID',
-            controller: _employeeIdController, isRequired: true),
-        _buildTextField('Full Name',
-            controller: _nameController, isRequired: true),
-        _buildTextField('Department',
-            controller: _departmentController, isRequired: true),
-        _buildTextField('Email',
-            controller: _emailController,
-            keyboardType: TextInputType.emailAddress,
-            isRequired: true),
-      ],
-    );
-  }
-
   Widget _buildParentForm() {
     return Column(
       children: [
@@ -182,11 +162,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Widget _buildForm() {
     switch (_selectedRole) {
-      case 0:
+      case 0: // Student
         return _buildStudentForm();
-      case 1:
-        return _buildTeacherForm();
-      case 2:
+      case 2: // Parent
         return _buildParentForm();
       default:
         return const SizedBox();
@@ -233,18 +211,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         style: TextStyle(fontSize: 15, color: Colors.black),
                       ),
                       const SizedBox(height: 8),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildRoleRadio(0, 'Student'),
-                            const SizedBox(width: 8),
-                            _buildRoleRadio(1, 'Teacher'),
-                            const SizedBox(width: 8),
-                            _buildRoleRadio(2, 'Parent'),
-                          ],
-                        ),
-                      ),
+                      _buildRoleSelection(),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -325,23 +292,39 @@ class _RegisterPageState extends State<RegisterPage> {
         ));
   }
 
-  Widget _buildRoleRadio(int value, String label) {
+  Widget _buildRoleSelection() {
     return Row(
       children: [
-        Radio<int>(
-          value: value,
-          groupValue: _selectedRole,
-          activeColor: const Color(0xFFFFB547),
-          onChanged: _isLoading
-              ? null
-              : (val) {
-                  setState(() {
-                    _selectedRole = val!;
-                  });
-                },
-        ),
-        Text(label, style: const TextStyle(fontSize: 15)),
+        _buildRoleRadio(0, 'Student'),
+        const SizedBox(width: 8),
+        _buildRoleRadio(2, 'Parent'),
       ],
+    );
+  }
+
+  Widget _buildRoleRadio(int index, String title) {
+    // Skip Teacher role (index 1)
+    if (index == 1) return const SizedBox.shrink();
+    
+    return ChoiceChip(
+      label: Text(
+        title,
+        style: TextStyle(
+          color: _selectedRole == index ? Colors.white : Colors.black,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      selected: _selectedRole == index,
+      selectedColor: const Color(0xFFFFB547),
+      backgroundColor: Colors.grey[200],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      onSelected: (selected) {
+        setState(() {
+          _selectedRole = index;
+        });
+      },
     );
   }
 

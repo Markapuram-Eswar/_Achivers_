@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'vocal_page.dart';
+import 'vocal_testing_page';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -35,6 +37,7 @@ class TasksScreenState extends State<TasksScreen> {
       'progress': 0.75,
       'tasks': 12,
       'completed': 9,
+      'isVocal': true,
     },
     {
       'title': 'History',
@@ -44,6 +47,26 @@ class TasksScreenState extends State<TasksScreen> {
       'progress': 0.30,
       'tasks': 10,
       'completed': 3,
+    },
+    {
+      'title': 'Vocal Testing',
+      'subtitle': 'Practice your speaking and pronunciation',
+      'icon': 'https://img.icons8.com/isometric/50/microphone.png',
+      'color': Colors.teal,
+      'progress': 0.0,
+      'tasks': 0,
+      'completed': 0,
+      'isVocalTesting': true,
+    },
+    {
+      'title': 'Vocal Practice',
+      'subtitle': 'Practice speaking and listening skills',
+      'icon': 'https://img.icons8.com/isometric/50/microphone.png',
+      'color': Colors.red,
+      'progress': 0.20,
+      'tasks': 5,
+      'completed': 1,
+      'isVocal': true,
     },
   ];
 
@@ -223,14 +246,34 @@ class TasksScreenState extends State<TasksScreen> {
   }
 
   Widget _buildTaskCard(Map<String, dynamic> item, BuildContext context) {
-    return GestureDetector(
-      onTap: () {
+    void _navigateToSubject(Map<String, dynamic> subject) {
+      if (subject['isVocalTesting'] == true) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => TaskDetailScreen(subject: item['title']),
+            builder: (context) => const KeywordMatchPage(),
           ),
         );
+      } else if (subject['isVocal'] == true) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const QuizScreen(),
+          ),
+        );
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TaskDetailScreen(subject: subject['title']),
+          ),
+        );
+      }
+    }
+
+    return GestureDetector(
+      onTap: () {
+        _navigateToSubject(item);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -341,7 +384,7 @@ class TasksScreenState extends State<TasksScreen> {
   }
 }
 
-// Task detail screen that shows random questions for the selected subject
+// Task detail screen that shows tasks for the selected subject
 class TaskDetailScreen extends StatefulWidget {
   final String subject;
 
@@ -351,209 +394,355 @@ class TaskDetailScreen extends StatefulWidget {
   State<TaskDetailScreen> createState() => _TaskDetailScreenState();
 }
 
-class _TaskDetailScreenState extends State<TaskDetailScreen> {
-  late List<Map<String, dynamic>> _questions = [];
-  int _currentQuestionIndex = 0;
-  bool _showAnswer = false;
+class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  
+  // Sample task data - in a real app, this would come from an API or database
+  final List<Map<String, dynamic>> _upcomingTasks = [];
+  final List<Map<String, dynamic>> _currentTasks = [];
+  final List<Map<String, dynamic>> _pastTasks = [];
 
   @override
   void initState() {
     super.initState();
-    _loadQuestions();
+    _tabController = TabController(length: 3, vsync: this);
+    _loadTasks();
   }
 
-  void _loadQuestions() {
-    // Sample questions for each subject
-    final Map<String, List<Map<String, dynamic>>> subjectQuestions = {
-      'Mathematics': [
-        {
-          'question': 'What is the value of π (pi) to two decimal places?',
-          'answer': '3.14',
-          'type': 'short_answer'
-        },
-        {
-          'question': 'Solve for x: 2x + 5 = 15',
-          'answer': 'x = 5',
-          'type': 'short_answer'
-        },
-        {
-          'question': 'What is the area of a circle with radius 5 units?',
-          'answer': '78.54 square units',
-          'type': 'short_answer'
-        },
-      ],
-      'Science': [
-        {
-          'question': 'What is the chemical symbol for Gold?',
-          'answer': 'Au',
-          'type': 'short_answer'
-        },
-        {
-          'question': 'What is the powerhouse of the cell?',
-          'answer': 'Mitochondria',
-          'type': 'short_answer'
-        },
-        {
-          'question': 'What is the speed of light in a vacuum?',
-          'answer': '299,792,458 meters per second',
-          'type': 'short_answer'
-        },
-      ],
-      'English': [
-        {
-          'question': 'What is the past tense of "go"?',
-          'answer': 'Went',
-          'type': 'short_answer'
-        },
-        {
-          'question':
-              'Identify the figure of speech: "The wind whispered through the trees."',
-          'answer': 'Personification',
-          'type': 'short_answer'
-        },
-        {
-          'question': 'What is a synonym for "happy"?',
-          'answer': 'Joyful, glad, content, etc.',
-          'type': 'short_answer'
-        },
-      ],
-      'History': [
-        {
-          'question': 'In which year did World War II end?',
-          'answer': '1945',
-          'type': 'short_answer'
-        },
-        {
-          'question': 'Who was the first President of the United States?',
-          'answer': 'George Washington',
-          'type': 'short_answer'
-        },
-        {
-          'question': 'What ancient civilization built the pyramids?',
-          'answer': 'Ancient Egyptians',
-          'type': 'short_answer'
-        },
-      ],
-    };
+  void _loadTasks() {
+    // Sample tasks for each subject
+    final now = DateTime.now();
+    
+    // Sample data - in a real app, this would come from an API or database
+    final allTasks = [
+      {
+        'title': '${widget.subject} Homework',
+        'description': 'Complete exercises 1-10 from chapter 5',
+        'dueDate': now.add(const Duration(days: 2)),
+        'completed': false,
+      },
+      {
+        'title': '${widget.subject} Project',
+        'description': 'Work on the group project presentation',
+        'dueDate': now.add(const Duration(days: 5)),
+        'completed': false,
+      },
+      {
+        'title': '${widget.subject} Quiz',
+        'description': 'Chapter 4-5 quiz',
+        'dueDate': now.subtract(const Duration(days: 2)),
+        'completed': true,
+      },
+      {
+        'title': '${widget.subject} Reading',
+        'description': 'Read pages 45-60',
+        'dueDate': now.add(const Duration(hours: 2)),
+        'completed': false,
+      },
+      {
+        'title': '${widget.subject} Worksheet',
+        'description': 'Complete the practice problems',
+        'dueDate': now.subtract(const Duration(days: 1)),
+        'completed': true,
+      },
+    ];
 
-    // Get questions for the current subject or default to a general message
-    _questions = subjectQuestions[widget.subject] ??
-        [
-          {
-            'question': 'No questions available for this subject yet.',
-            'answer': 'Check back later for updates!',
-            'type': 'info'
-          }
-        ];
-
-    // Shuffle the questions
-    _questions.shuffle();
+    // Categorize tasks
+    for (var task in allTasks) {
+      final dueDate = task['dueDate'] as DateTime;
+      final isPast = dueDate.isBefore(now.subtract(const Duration(hours: 1)));
+      final isCurrent = dueDate.isAfter(now) && dueDate.isBefore(now.add(const Duration(days: 1)));
+      
+      if (isPast) {
+        _pastTasks.add(task);
+      } else if (isCurrent) {
+        _currentTasks.add(task);
+      } else {
+        _upcomingTasks.add(task);
+      }
+    }
   }
 
-  void _nextQuestion() {
-    setState(() {
-      _showAnswer = false;
-      _currentQuestionIndex = (_currentQuestionIndex + 1) % _questions.length;
-    });
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = date.difference(DateTime(now.year, now.month, now.day));
+    
+    if (difference.inDays == 0) {
+      return 'Today at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays == 1) {
+      return 'Tomorrow at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays < 7) {
+      return '${_getWeekday(date.weekday)} at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else {
+      return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    }
   }
 
-  void _toggleAnswer() {
-    setState(() {
-      _showAnswer = !_showAnswer;
-    });
+  String _getWeekday(int weekday) {
+    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return weekdays[weekday - 1];
+  }
+
+  Color _getTaskColor(DateTime dueDate) {
+    final now = DateTime.now();
+    final difference = dueDate.difference(now);
+    
+    if (dueDate.isBefore(now)) {
+      return Colors.red.shade100; // Past due
+    } else if (difference.inHours < 24) {
+      return Colors.orange.shade100; // Due today
+    } else if (difference.inDays < 3) {
+      return Colors.blue.shade100; // Due in 1-2 days
+    } else {
+      return Colors.green.shade100; // Due later
+    }
+  }
+
+  Widget _buildTaskList(List<Map<String, dynamic>> tasks, {bool showCompleted = false}) {
+    if (tasks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.assignment_turned_in_outlined,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No tasks here yet!',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Enjoy your free time!',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: tasks.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final task = tasks[index];
+        final dueDate = task['dueDate'] as DateTime;
+        final isCompleted = task['completed'] as bool? ?? false;
+        
+        return Dismissible(
+          key: Key('task_${task['title']}_$index'),
+          background: Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.red.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            child: const Icon(Icons.delete, color: Colors.red),
+          ),
+          direction: DismissDirection.endToStart,
+          onDismissed: (direction) {
+            setState(() {
+              tasks.removeAt(index);
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Task "${task['title']}" removed'),
+                action: SnackBarAction(
+                  label: 'UNDO',
+                  onPressed: () {
+                    setState(() {
+                      tasks.insert(index, task);
+                    });
+                  },
+                ),
+              ),
+            );
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: isCompleted ? Colors.grey.shade100 : _getTaskColor(dueDate),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  // Handle task tap (e.g., show details)
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        margin: const EdgeInsets.only(right: 12, top: 2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isCompleted ? Colors.green : Colors.grey.shade400,
+                            width: 2,
+                          ),
+                        ),
+                        child: isCompleted
+                            ? const Icon(
+                                Icons.check,
+                                size: 16,
+                                color: Colors.green,
+                              )
+                            : null,
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              task['title'],
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                decoration: isCompleted ? TextDecoration.lineThrough : null,
+                                color: isCompleted ? Colors.grey : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            if (task['description'] != null && task['description'].isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Text(
+                                  task['description'],
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade700,
+                                    decoration: isCompleted ? TextDecoration.lineThrough : null,
+                                  ),
+                                ),
+                              ),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time,
+                                  size: 14,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _formatDate(dueDate),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (!isCompleted)
+                        IconButton(
+                          icon: const Icon(Icons.more_vert, size: 20),
+                          color: Colors.grey.shade600,
+                          onPressed: () {
+                            // Show task options
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentQuestion =
-        _questions.isNotEmpty ? _questions[_currentQuestionIndex] : null;
-
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text('${widget.subject} Practice'),
-        backgroundColor: Colors.teal,
+        title: Text(
+          '${widget.subject} Tasks',
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.5,
+          ),
+        ),
+        backgroundColor: Colors.teal.shade600,
         foregroundColor: Colors.white,
-      ),
-      body: currentQuestion == null
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Card(
-                    elevation: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Question ${_currentQuestionIndex + 1} of ${_questions.length}',
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            currentQuestion['question'],
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          if (_showAnswer) ...[
-                            // Conditional rendering for answer
-                            const Divider(),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'Answer:',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.teal,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              currentQuestion['answer'],
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  if (_showAnswer) // Only show next button after showing answer
-                    ElevatedButton(
-                      onPressed: _nextQuestion,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
-                      child: const Text(
-                        'Next Question',
-                        style: TextStyle(fontSize: 16, color: Colors.white),
-                      ),
-                    ),
-                  if (!_showAnswer) // Show answer button
-                    ElevatedButton(
-                      onPressed: _toggleAnswer,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
-                      child: const Text(
-                        'Show Answer',
-                        style: TextStyle(fontSize: 16, color: Colors.white),
-                      ),
-                    ),
-                  const SizedBox(height: 20),
-                ],
+        elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.teal.shade500.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white.withOpacity(0.7),
+              indicator: BoxDecoration(
+                color: Colors.teal.shade700,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              tabs: const [
+                Tab(text: 'Current'),
+                Tab(text: 'Upcoming'),
+                Tab(text: 'Past'),
+              ],
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.normal,
+                fontSize: 14,
               ),
             ),
+          ),
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildTaskList(_currentTasks),
+          _buildTaskList(_upcomingTasks),
+          _buildTaskList(_pastTasks, showCompleted: true),
+        ],
+      ),
     );
   }
 }
