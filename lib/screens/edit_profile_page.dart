@@ -1,6 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../services/ProfileService.dart'; // Import the service
+import '../services/auth_service.dart'; // For fetching roll number or ID
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -11,8 +11,7 @@ class EditProfilePage extends StatefulWidget {
 
 class _EditProfilePageState extends State<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
-  final _firestore = FirebaseFirestore.instance;
-  final _auth = FirebaseAuth.instance;
+  final EditProfileService _editProfileService = EditProfileService();
 
   // Controllers
   final TextEditingController _rollNoController = TextEditingController();
@@ -24,6 +23,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // State variables
   bool _isLoading = true;
   bool _isSaving = false;
+  String? _rollNumber;
 
   @override
   void initState() {
@@ -45,48 +45,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (!mounted) return;
 
     try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No user logged in'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          Navigator.of(context).pop();
-        }
-        return;
-      }
+      // Get roll number from AuthService
+      _rollNumber = await AuthService.getUserId();
 
-      /* Backend TODO: Fetch user profile data from backend (API call, database read) */
-      final doc = await _firestore.collection('users').doc(user.uid).get();
+      // Get profile data
+      final profile = await _editProfileService.getStudentProfile();
 
-      if (mounted) {
-        setState(() {
-          if (doc.exists) {
-            _rollNoController.text = doc.data()?['rollNo']?.toString() ?? '';
-            _fullNameController.text =
-                doc.data()?['fullName']?.toString() ?? '';
-            _classController.text = doc.data()?['class']?.toString() ?? '';
-            _sectionController.text = doc.data()?['section']?.toString() ?? '';
-            _parentEmailController.text =
-                doc.data()?['parentEmail']?.toString() ?? '';
-          }
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _rollNoController.text = _rollNumber ?? '';
+        _fullNameController.text = profile['fullName']?.toString() ?? '';
+        _classController.text = profile['class']?.toString() ?? '';
+        _sectionController.text = profile['section']?.toString() ?? '';
+        _parentEmailController.text = profile['parentEmail']?.toString() ?? '';
+        _isLoading = false;
+      });
     } catch (e) {
-      /* Backend TODO: Handle error fetching user profile from backend */
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading profile: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading profile: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      Navigator.of(context).pop();
     }
   }
 
@@ -96,30 +77,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
     setState(() => _isSaving = true);
 
     try {
-      final user = _auth.currentUser;
-      if (user != null) {
-        /* Backend TODO: Update user profile in backend (API call, database write) */
-        await _firestore.collection('users').doc(user.uid).set({
-          'rollNo': _rollNoController.text.trim(),
-          'fullName': _fullNameController.text.trim(),
-          'class': _classController.text.trim(),
-          'section': _sectionController.text.trim(),
-          'parentEmail': _parentEmailController.text.trim(),
-          'lastUpdated': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+      await _editProfileService.updateStudentProfile(
+        fullName: _fullNameController.text,
+        studentClass: _classController.text,
+        section: _sectionController.text,
+        parentEmail: _parentEmailController.text,
+      );
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile updated successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.pop(context);
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
       }
     } catch (e) {
-      /* Backend TODO: Handle error updating user profile in backend */
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -129,9 +103,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -154,10 +126,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   )
                 : const Text(
                     'SAVE',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
           ),
         ],
@@ -171,7 +140,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Roll Number (non-editable)
+                    // Roll Number (read-only)
                     TextFormField(
                       controller: _rollNoController,
                       decoration: InputDecoration(
@@ -179,8 +148,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         border: const OutlineInputBorder(),
                         filled: true,
                         fillColor: Colors.grey[200],
+                        prefixIcon: const Icon(Icons.badge_outlined),
                       ),
                       readOnly: true,
+                      enabled: false,
                       style: TextStyle(color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 16),
@@ -193,12 +164,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.person_outline),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your full name';
-                        }
-                        return null;
-                      },
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                              ? 'Please enter your full name'
+                              : null,
                     ),
                     const SizedBox(height: 16),
 
@@ -210,12 +179,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.school_outlined),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your class';
-                        }
-                        return null;
-                      },
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                              ? 'Please enter your class'
+                              : null,
                     ),
                     const SizedBox(height: 16),
 
@@ -227,12 +194,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.assignment_outlined),
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your section';
-                        }
-                        return null;
-                      },
+                      validator: (value) =>
+                          value == null || value.trim().isEmpty
+                              ? 'Please enter your section'
+                              : null,
                     ),
                     const SizedBox(height: 16),
 

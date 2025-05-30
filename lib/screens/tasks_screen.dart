@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'vocal_page.dart';
 import 'vocal_testing_page';
+import '../services/TestService.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -10,6 +11,7 @@ class TasksScreen extends StatefulWidget {
 }
 
 class TasksScreenState extends State<TasksScreen> {
+  final TestService _testService = TestService();
   final List<Map<String, dynamic>> _taskItems = [
     {
       'title': 'Mathematics',
@@ -70,34 +72,81 @@ class TasksScreenState extends State<TasksScreen> {
     },
   ];
 
-  final List<Map<String, dynamic>> _recentTasks = [
-    {
-      'title': 'Algebra Homework',
-      'subject': 'Mathematics',
-      'dueDate': 'Due Tomorrow',
-      'status': 'In Progress',
-      'color': Colors.blue,
-    },
-    {
-      'title': 'Science Project',
-      'subject': 'Science',
-      'dueDate': 'Due in 2 days',
-      'status': 'Not Started',
-      'color': Colors.green,
-    },
-    {
-      'title': 'Book Report',
-      'subject': 'English',
-      'dueDate': 'Due in 3 days',
-      'status': 'Not Started',
-      'color': Colors.purple,
-    },
-  ];
+  final List<Map<String, dynamic>> _recentTasks = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    /* Backend TODO: Fetch tasks from backend (API call, database read) */
+    _loadTests();
+  }
+
+  Future<void> _loadTests() async {
+    try {
+      final tests = await _testService.getTestsForClassAndSection();
+      
+      // Convert tests to recent tasks format
+      final recentTasks = tests.map((test) {
+        return {
+          'title': test['testName'] ?? '${test['subject']} Test',
+          'subject': test['subject'],
+          'dueDate': 'Test Available',
+          'status': test['status'] ?? 'pending',
+          'color': _getSubjectColor(test['subject']),
+          'testId': test['testId'],
+        };
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _recentTasks.clear();
+          _recentTasks.addAll(recentTasks);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading tests: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  String _getTestStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'Completed';
+      case 'in_progress':
+        return 'In Progress';
+      case 'pending':
+        return 'Not Started';
+      default:
+        return 'Not Started';
+    }
+  }
+
+  Color _getSubjectColor(String subject) {
+    switch (subject.toLowerCase()) {
+      case 'mathematics':
+        return Colors.blue;
+      case 'physics':
+        return Colors.green;
+      case 'chemistry':
+        return Colors.purple;
+      case 'biology':
+        return Colors.orange;
+      case 'computer science':
+        return Colors.teal;
+      default:
+        return Colors.grey;
+    }
   }
 
   @override
@@ -394,9 +443,10 @@ class TaskDetailScreen extends StatefulWidget {
   State<TaskDetailScreen> createState() => _TaskDetailScreenState();
 }
 
-class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerProviderStateMixin {
+class _TaskDetailScreenState extends State<TaskDetailScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   // Sample task data - in a real app, this would come from an API or database
   final List<Map<String, dynamic>> _upcomingTasks = [];
   final List<Map<String, dynamic>> _currentTasks = [];
@@ -412,7 +462,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
   void _loadTasks() {
     // Sample tasks for each subject
     final now = DateTime.now();
-    
+
     // Sample data - in a real app, this would come from an API or database
     final allTasks = [
       {
@@ -451,8 +501,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
     for (var task in allTasks) {
       final dueDate = task['dueDate'] as DateTime;
       final isPast = dueDate.isBefore(now.subtract(const Duration(hours: 1)));
-      final isCurrent = dueDate.isAfter(now) && dueDate.isBefore(now.add(const Duration(days: 1)));
-      
+      final isCurrent = dueDate.isAfter(now) &&
+          dueDate.isBefore(now.add(const Duration(days: 1)));
+
       if (isPast) {
         _pastTasks.add(task);
       } else if (isCurrent) {
@@ -466,7 +517,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = date.difference(DateTime(now.year, now.month, now.day));
-    
+
     if (difference.inDays == 0) {
       return 'Today at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } else if (difference.inDays == 1) {
@@ -479,14 +530,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
   }
 
   String _getWeekday(int weekday) {
-    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
     return weekdays[weekday - 1];
   }
 
   Color _getTaskColor(DateTime dueDate) {
     final now = DateTime.now();
     final difference = dueDate.difference(now);
-    
+
     if (dueDate.isBefore(now)) {
       return Colors.red.shade100; // Past due
     } else if (difference.inHours < 24) {
@@ -498,7 +557,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
     }
   }
 
-  Widget _buildTaskList(List<Map<String, dynamic>> tasks, {bool showCompleted = false}) {
+  Widget _buildTaskList(List<Map<String, dynamic>> tasks,
+      {bool showCompleted = false}) {
     if (tasks.isEmpty) {
       return Center(
         child: Column(
@@ -539,7 +599,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
         final task = tasks[index];
         final dueDate = task['dueDate'] as DateTime;
         final isCompleted = task['completed'] as bool? ?? false;
-        
+
         return Dismissible(
           key: Key('task_${task['title']}_$index'),
           background: Container(
@@ -574,7 +634,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             decoration: BoxDecoration(
-              color: isCompleted ? Colors.grey.shade100 : _getTaskColor(dueDate),
+              color:
+                  isCompleted ? Colors.grey.shade100 : _getTaskColor(dueDate),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -603,7 +664,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isCompleted ? Colors.green : Colors.grey.shade400,
+                            color: isCompleted
+                                ? Colors.green
+                                : Colors.grey.shade400,
                             width: 2,
                           ),
                         ),
@@ -624,12 +687,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                decoration: isCompleted ? TextDecoration.lineThrough : null,
-                                color: isCompleted ? Colors.grey : Colors.black87,
+                                decoration: isCompleted
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                                color:
+                                    isCompleted ? Colors.grey : Colors.black87,
                               ),
                             ),
                             const SizedBox(height: 4),
-                            if (task['description'] != null && task['description'].isNotEmpty)
+                            if (task['description'] != null &&
+                                task['description'].isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 6),
                                 child: Text(
@@ -637,7 +704,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: Colors.grey.shade700,
-                                    decoration: isCompleted ? TextDecoration.lineThrough : null,
+                                    decoration: isCompleted
+                                        ? TextDecoration.lineThrough
+                                        : null,
                                   ),
                                 ),
                               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/TestService.dart';
 
 class CreateTestScreen extends StatefulWidget {
   const CreateTestScreen({super.key});
@@ -8,6 +9,7 @@ class CreateTestScreen extends StatefulWidget {
 }
 
 class _CreateTestScreenState extends State<CreateTestScreen> {
+  final TestService _testService = TestService();
   final List<String> _subjects = [
     'Mathematics',
     'Physics',
@@ -15,8 +17,10 @@ class _CreateTestScreenState extends State<CreateTestScreen> {
     'Biology',
     'Computer Science'
   ];
+  final List<String> _classes = ['6th', '7th', '8th', '9th', '10th'];
   final List<String> _sections = ['A', 'B', 'C'];
   String _selectedSubject = 'Mathematics';
+  String _selectedClass = '10th';
   String _selectedSection = 'A';
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
@@ -118,6 +122,51 @@ class _CreateTestScreenState extends State<CreateTestScreen> {
     setState(() {
       _questions.removeAt(index);
     });
+  }
+
+  Future<void> _createTest() async {
+    if (_questions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please add at least one question'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _testService.createTest(
+        subject: _selectedSubject,
+        classLevel: _selectedClass,
+        section: _selectedSection,
+        date: _selectedDate,
+        time:
+            '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
+        duration: int.parse(_durationController.text),
+        maxMarks: int.parse(_maxMarksController.text),
+        questions: _questions,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Test created successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating test: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildQuestionCard(Map<String, dynamic> question, int index) {
@@ -255,11 +304,18 @@ class _CreateTestScreenState extends State<CreateTestScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Subject',
                         border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.book_outlined),
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
+                      isExpanded: true,
                       items: _subjects.map((String subject) {
                         return DropdownMenuItem<String>(
                           value: subject,
-                          child: Text(subject),
+                          child: Text(
+                            subject,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         );
                       }).toList(),
                       onChanged: (String? newValue) {
@@ -269,23 +325,64 @@ class _CreateTestScreenState extends State<CreateTestScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedSection,
-                      decoration: const InputDecoration(
-                        labelText: 'Section',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: _sections.map((String section) {
-                        return DropdownMenuItem<String>(
-                          value: section,
-                          child: Text('Section $section'),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _selectedSection = newValue!;
-                        });
-                      },
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedClass,
+                            decoration: const InputDecoration(
+                              labelText: 'Class',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.school_outlined),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                            ),
+                            isExpanded: true,
+                            items: _classes.map((String className) {
+                              return DropdownMenuItem<String>(
+                                value: className,
+                                child: Text(
+                                  className,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                _selectedClass = newValue!;
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _selectedSection,
+                            decoration: const InputDecoration(
+                              labelText: 'Section',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.group_outlined),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                            ),
+                            isExpanded: true,
+                            items: _sections.map((String section) {
+                              return DropdownMenuItem<String>(
+                                value: section,
+                                child: Text(
+                                  'Section $section',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                _selectedSection = newValue!;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -399,25 +496,7 @@ class _CreateTestScreenState extends State<CreateTestScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                onPressed: () {
-                  if (_questions.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please add at least one question'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-                  /* Backend TODO: Submit test to backend (API call, database write) */
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Test created successfully'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                  Navigator.pop(context);
-                },
+                onPressed: _createTest,
                 child: const Text(
                   'Create Test',
                   style: TextStyle(

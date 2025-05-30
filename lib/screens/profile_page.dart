@@ -5,6 +5,8 @@ import 'help_screen.dart';
 import 'videos_screen.dart';
 import 'tts.dart';
 import 'edit_profile_page.dart';
+import '../services/ProfileService.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -14,8 +16,31 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  Map<String, dynamic>? studentData;
+  bool isLoading = true;
   File? _image;
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    fetchProfile();
+  }
+
+  Future<void> fetchProfile() async {
+    try {
+      final data = await ProfileService().getStudentProfile();
+      setState(() {
+        studentData = data;
+        isLoading = false;
+      });
+    } catch (e) {
+      Fluttertoast.showToast(msg: 'Failed to load profile: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   Future<void> _pickImage() async {
     final XFile? pickedFile =
@@ -25,200 +50,6 @@ class _ProfilePageState extends State<ProfilePage> {
         _image = File(pickedFile.path);
       });
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.shade200,
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Center(
-                    child: GestureDetector(
-                      onTap: _pickImage,
-                      child: Stack(
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: Colors.blue.shade100, width: 3),
-                            ),
-                            child: CircleAvatar(
-                              radius: 50,
-                              backgroundColor: Colors.blue.shade50,
-                              backgroundImage:
-                                  _image != null ? FileImage(_image!) : null,
-                              child: _image == null
-                                  ? Icon(Icons.person,
-                                      size: 50, color: Colors.blue.shade300)
-                                  : null,
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade500,
-                                shape: BoxShape.circle,
-                                border:
-                                    Border.all(color: Colors.white, width: 2),
-                              ),
-                              child: const Icon(
-                                Icons.edit,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Eswar Kumar',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.only(top: 8),
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.shade200,
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildProfileInfoRow('Roll Number', '22CS123'),
-                        const Divider(height: 20),
-                        _buildProfileInfoRow('Name', 'Eswar Kumar'),
-                        const Divider(height: 20),
-                        _buildProfileInfoRow('Class & Section', '10th - A'),
-                        const Divider(height: 20),
-                        _buildProfileInfoRow(
-                            "Parent's Email", 'parent@example.com'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  _buildMenuItem('Edit Account', Icons.edit, onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const EditProfilePage(),
-                      ),
-                    );
-                  }),
-                  _buildMenuItem('Help', Icons.help_outline, onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const HelpScreen(),
-                      ),
-                    );
-                  }),
-                  _buildMenuItem('Text to Speech', Icons.volume_up, onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SimpleReadingTracker(),
-                      ),
-                    );
-                  }),
-                  _buildMenuItem('Videos', Icons.video_library, onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const VideoFlowScreen(),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 20),
-                  _buildMenuItem(
-                    'Logout',
-                    Icons.logout,
-                    color: Colors.red,
-                    onTap: () {
-                      // Show confirmation dialog
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: const Text('Logout'),
-                            content:
-                                const Text('Are you sure you want to logout?'),
-                            actions: <Widget>[
-                              TextButton(
-                                child: const Text('Cancel'),
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                },
-                              ),
-                              TextButton(
-                                child: const Text('Logout',
-                                    style: TextStyle(color: Colors.red)),
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  /* Backend TODO: Clear user session and tokens on logout */
-                                  // Navigate to login screen
-                                  Navigator.pushNamedAndRemoveUntil(
-                                    context,
-                                    '/login',
-                                    (route) => false,
-                                  );
-                                },
-                              ),
-                            ],
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildProfileInfoRow(String label, String value) {
@@ -289,6 +120,206 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         trailing: Icon(Icons.arrow_forward_ios,
             size: 16, color: Colors.grey.shade400),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    final fullName = studentData?['fullName'] ?? 'Eswar Kumar';
+    final name = studentData?['name'] ?? 'Eswar Kumar';
+    final rollNumber = studentData?['rollNumber'] ?? '22CS123';
+    final studentClass = studentData?['class'] ?? '10th';
+    final section = studentData?['section'] ?? 'A';
+    final parentEmail =
+        studentData?['parentEmail'] ?? 'No parent email provided';
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade200,
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Center(
+                    child: GestureDetector(
+                      onTap: _pickImage,
+                      child: Stack(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.blue.shade100, width: 3),
+                            ),
+                            child: CircleAvatar(
+                              radius: 50,
+                              backgroundColor: Colors.blue.shade50,
+                              backgroundImage:
+                                  _image != null ? FileImage(_image!) : null,
+                              child: _image == null
+                                  ? Icon(Icons.person,
+                                      size: 50, color: Colors.blue.shade300)
+                                  : null,
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade500,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const Icon(Icons.edit,
+                                  color: Colors.white, size: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    fullName,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(top: 8),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.shade200,
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildProfileInfoRow('Roll Number', rollNumber),
+                        const Divider(height: 20),
+                        _buildProfileInfoRow('Name', name),
+                        const Divider(height: 20),
+                        _buildProfileInfoRow(
+                            'Class & Section', '$studentClass - $section'),
+                        const Divider(height: 20),
+                        _buildProfileInfoRow("Parent's Email", parentEmail),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  _buildMenuItem('Edit Account', Icons.edit, onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const EditProfilePage()),
+                    ).then((_) {
+                      // Call your method to refresh the parent widget here
+                      setState(() {
+                        fetchProfile(); // Or any method that reloads the data
+                      });
+                    });
+                  }),
+                  _buildMenuItem('Help', Icons.help_outline, onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const HelpScreen()),
+                    );
+                  }),
+                  _buildMenuItem('Text to Speech', Icons.volume_up, onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const SimpleReadingTracker()),
+                    );
+                  }),
+                  _buildMenuItem('Videos', Icons.video_library, onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const VideoFlowScreen()),
+                    );
+                  }),
+                  const SizedBox(height: 20),
+                  _buildMenuItem('Logout', Icons.logout, color: Colors.red,
+                      onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Logout'),
+                          content:
+                              const Text('Are you sure you want to logout?'),
+                          actions: <Widget>[
+                            TextButton(
+                              child: const Text('Cancel'),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                            TextButton(
+                              child: const Text('Logout',
+                                  style: TextStyle(color: Colors.red)),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                Navigator.pushNamedAndRemoveUntil(
+                                  context,
+                                  '/login',
+                                  (route) => false,
+                                );
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
