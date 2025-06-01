@@ -19,6 +19,7 @@ class McqPageState extends State<McqPage> {
   int _currentQuestionIndex = 0;
   List<int?> _selectedAnswers = [];
   bool _hasSubmitted = false;
+  bool _showReview = false;
   int _score = 0;
 
   @override
@@ -101,10 +102,17 @@ class McqPageState extends State<McqPage> {
   }
 
   void _submitQuiz() {
-    if (!_allQuestionsAnswered) return;
+    if (!_allQuestionsAnswered) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please answer all questions before submitting')),
+      );
+      return;
+    }
 
     setState(() {
       _hasSubmitted = true;
+      _showReview = false;
       _score = 0;
 
       for (int i = 0; i < _questions.length; i++) {
@@ -116,10 +124,26 @@ class McqPageState extends State<McqPage> {
   }
 
   void _checkAnswers() {
-    // This will now only show the current question's answer
     setState(() {
-      _hasSubmitted = true;
+      _showReview = true;
     });
+  }
+
+  void _downloadReport() async {
+    // In a real app, this would generate and download a PDF report
+    // For now, we'll just show a snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Downloading report...')),
+    );
+
+    // Simulate download delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Report downloaded successfully!')),
+      );
+    }
   }
 
   void _nextQuestion() {
@@ -184,11 +208,12 @@ class McqPageState extends State<McqPage> {
             ),
           ),
 
-          // Question content
+          // Question content or review
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
-              child: _buildCurrentQuestion(),
+              child:
+                  _showReview ? _buildReviewScreen() : _buildCurrentQuestion(),
             ),
           ),
 
@@ -210,27 +235,56 @@ class McqPageState extends State<McqPage> {
                     _currentQuestionIndex == _questions.length - 1
                 ? Center(
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Your Score: $_score/${_questions.length}',
+                          'Quiz Submitted!',
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: widget.subjectData['color'],
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {
-                            // Navigate back or show review options
-                            Navigator.pop(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: widget.subjectData['color'],
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 32, vertical: 12),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Your Score: $_score/${_questions.length}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
-                          child: const Text('Finish'),
+                        ),
+                        const SizedBox(height: 24),
+                        if (!_showReview)
+                          ElevatedButton(
+                            onPressed: _checkAnswers,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: widget.subjectData['color'],
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 32, vertical: 12),
+                            ),
+                            child: const Text('Review Answers'),
+                          )
+                        else
+                          ElevatedButton(
+                            onPressed: _downloadReport,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 32, vertical: 12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.download),
+                                SizedBox(width: 8),
+                                Text('Download Report'),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 16),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Back to Topics'),
                         ),
                       ],
                     ),
@@ -258,14 +312,7 @@ class McqPageState extends State<McqPage> {
                           child: const Text('Submit Quiz'),
                         )
                       else
-                        ElevatedButton(
-                          onPressed: _hasSubmitted ? null : _checkAnswers,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: widget.subjectData['color'],
-                            foregroundColor: Colors.white,
-                          ),
-                          child: const Text('Check Answer'),
-                        ),
+                        const SizedBox(), // Remove Check Answer button
                       ElevatedButton(
                         onPressed: _currentQuestionIndex < _questions.length - 1
                             ? _nextQuestion
@@ -278,7 +325,7 @@ class McqPageState extends State<McqPage> {
                         ),
                         child: Text(
                           _currentQuestionIndex == _questions.length - 1
-                              ? 'Submit'
+                              ? (_allQuestionsAnswered ? 'Submit' : 'Finish')
                               : 'Next',
                         ),
                       ),
@@ -287,6 +334,191 @@ class McqPageState extends State<McqPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildReviewScreen() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: widget.subjectData['color'].withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: widget.subjectData['color']),
+          ),
+          child: Column(
+            children: [
+              Text(
+                'Quiz Review',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: widget.subjectData['color'],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Score: $_score/${_questions.length} (${(_score / _questions.length * 100).toStringAsFixed(0)}%)',
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+        ...List.generate(_questions.length, (index) {
+          final question = _questions[index];
+          final isCorrect =
+              _selectedAnswers[index] == question['correctAnswer'];
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: isCorrect ? Colors.green : Colors.red,
+                width: 2,
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color:
+                        isCorrect ? Colors.green.shade50 : Colors.red.shade50,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(10),
+                      topRight: Radius.circular(10),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isCorrect ? Icons.check_circle : Icons.cancel,
+                        color: isCorrect ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Question ${index + 1}${isCorrect ? ' (Correct)' : ' (Incorrect)'}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isCorrect ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildQuestionReview(question, index),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildQuestionReview(
+      Map<String, dynamic> question, int questionIndex) {
+    final List<String> options = question['options'];
+    final int correctAnswer = question['correctAnswer'];
+    final int? selectedAnswer = _selectedAnswers[questionIndex];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          question['question'],
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...options.asMap().entries.map((entry) {
+          final index = entry.key;
+          final option = entry.value;
+          final isCorrect = index == correctAnswer;
+          final isSelected = selectedAnswer == index;
+
+          Color bgColor = Colors.grey.shade100;
+          Color borderColor = Colors.grey.shade300;
+          IconData? icon;
+          Color? iconColor;
+
+          if (isCorrect) {
+            bgColor = Colors.green.shade50;
+            borderColor = Colors.green;
+            icon = Icons.check_circle;
+            iconColor = Colors.green;
+          } else if (isSelected) {
+            bgColor = Colors.red.shade50;
+            borderColor = Colors.red;
+            icon = Icons.cancel;
+            iconColor = Colors.red;
+          }
+
+          return Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: borderColor),
+            ),
+            child: Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, color: iconColor, size: 20),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: Text(
+                    option,
+                    style: TextStyle(
+                      color: isSelected || isCorrect ? Colors.black87 : null,
+                      fontWeight:
+                          isSelected || isCorrect ? FontWeight.bold : null,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+        const SizedBox(height: 12),
+        if (question['explanation'] != null) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Explanation:',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(question['explanation']),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 

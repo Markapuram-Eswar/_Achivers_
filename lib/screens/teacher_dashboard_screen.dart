@@ -164,7 +164,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const ClassAssignmentsScreen(),
+                builder: (context) => const EnterMarksScreen(),
               ),
             );
           },

@@ -70,14 +70,24 @@ class _CreateTestScreenState extends State<CreateTestScreen> {
                       /* Backend TODO: Save MCQ question to backend (API call, database write) */
                     },
                   )
-                : _AddFillBlanksDialog(
-                    onAdd: (question) {
-                      setState(() {
-                        _questions.add({...question, 'type': 'fillBlanks'});
-                      });
-                      /* Backend TODO: Save fill-in-the-blanks question to backend (API call, database write) */
-                    },
-                  ),
+                : type == QuestionType.fillBlanks
+                    ? _AddFillBlanksDialog(
+                        onAdd: (question) {
+                          setState(() {
+                            _questions.add({...question, 'type': 'fillBlanks'});
+                          });
+                          /* Backend TODO: Save fill-in-the-blanks question to backend (API call, database write) */
+                        },
+                      )
+                    : _AddVocalQuestionDialog(
+                        onAdd: (question) {
+                          setState(() {
+                            _questions.add({...question, 'type': 'vocal'});
+                          });
+                          /* Backend TODO: Save vocal question to backend (API call, database write) */
+                        },
+                        initialQuestion: null,
+                      ),
           );
         },
       ),
@@ -121,106 +131,178 @@ class _CreateTestScreenState extends State<CreateTestScreen> {
   }
 
   Widget _buildQuestionCard(Map<String, dynamic> question, int index) {
-    if (question['type'] == 'multipleChoice') {
-      return Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        child: ListTile(
-          title: Text(
-            'Q${index + 1}: ${question['question']}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              ...List.generate(
-                question['options'].length,
-                (optionIndex) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${String.fromCharCode(65 + optionIndex)}. ',
-                        style: TextStyle(
-                          color: (question['correctOptions'] as List<int>)
-                                  .contains(optionIndex)
-                              ? Colors.green
-                              : Colors.black87,
-                          fontWeight: (question['correctOptions'] as List<int>)
-                                  .contains(optionIndex)
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+    switch (question['type']) {
+      case 'multipleChoice':
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            title: Text(
+              'Q${index + 1}: ${question['question']}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                ...List.generate(
+                  question['options'].length,
+                  (optionIndex) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${String.fromCharCode(65 + optionIndex)}. ',
+                          style: TextStyle(
+                            color: (question['correctOptions'] as List<int>)
+                                    .contains(optionIndex)
+                                ? Colors.green
+                                : Colors.black87,
+                            fontWeight: (question['correctOptions'] as List<int>)
+                                    .contains(optionIndex)
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
                         ),
-                      ),
-                      Text(
-                        question['options'][optionIndex],
-                        style: TextStyle(
-                          color: (question['correctOptions'] as List<int>)
-                                  .contains(optionIndex)
-                              ? Colors.green
-                              : Colors.black87,
-                          fontWeight: (question['correctOptions'] as List<int>)
-                                  .contains(optionIndex)
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                        Text(
+                          question['options'][optionIndex],
+                          style: TextStyle(
+                            color: (question['correctOptions'] as List<int>)
+                                    .contains(optionIndex)
+                                ? Colors.green
+                                : Colors.black87,
+                            fontWeight: (question['correctOptions'] as List<int>)
+                                    .contains(optionIndex)
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => _editQuestion(index),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () => _deleteQuestion(index),
+                ),
+              ],
+            ),
           ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => _editQuestion(index),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () => _deleteQuestion(index),
-              ),
-            ],
+        );
+
+      case 'fillBlanks':
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            title: Text(
+              'Q${index + 1}: Fill in the blanks',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                Text(question['sentence'] ?? question['question']),
+                const SizedBox(height: 4),
+                Text(
+                  'Answer: ${question['answer']}',
+                  style: const TextStyle(color: Colors.green),
+                ),
+                if (question['hint'] != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Hint: ${question['hint']}',
+                    style: TextStyle(
+                      fontStyle: FontStyle.italic,
+                      color: Colors.orange[800],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => _editQuestion(index),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () => _deleteQuestion(index),
+                ),
+              ],
+            ),
           ),
-        ),
-      );
-    } else {
-      return Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        child: ListTile(
-          title: Text(
-            'Q${index + 1}: Fill in the blanks',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+        );
+
+      case 'vocal':
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            title: Text(
+              'Q${index + 1}: Vocal Response',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                Text(question['question']),
+                const SizedBox(height: 4),
+                if (question['sampleAnswer'] != null) ...[
+                  const Text(
+                    'Sample Answer:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(question['sampleAnswer']),
+                ],
+                if (question['keywords'] != null && question['keywords'].isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Keywords:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(question['keywords'].join(', ')),
+                ],
+              ],
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => _editQuestion(index),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () => _deleteQuestion(index),
+                ),
+              ],
+            ),
           ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              Text(question['sentence']),
-              const SizedBox(height: 4),
-              Text(
-                'Answer: ${question['answer']}',
-                style: const TextStyle(color: Colors.green),
-              ),
-            ],
+        );
+
+      default:
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            title: Text('Q${index + 1}: Unknown Question Type'),
+            subtitle: const Text('This question type is not supported'),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () => _deleteQuestion(index),
+            ),
           ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.edit),
-                onPressed: () => _editQuestion(index),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete),
-                onPressed: () => _deleteQuestion(index),
-              ),
-            ],
-          ),
-        ),
-      );
+        );
     }
   }
 
@@ -452,6 +534,7 @@ class _CreateTestScreenState extends State<CreateTestScreen> {
 enum QuestionType {
   multipleChoice,
   fillBlanks,
+  vocal,
 }
 
 class _QuestionTypeDialog extends StatelessWidget {
@@ -475,6 +558,11 @@ class _QuestionTypeDialog extends StatelessWidget {
             leading: const Icon(Icons.short_text),
             title: const Text('Fill in the Blanks'),
             onTap: () => onSelectType(QuestionType.fillBlanks),
+          ),
+          ListTile(
+            leading: const Icon(Icons.mic),
+            title: const Text('Vocal'),
+            onTap: () => onSelectType(QuestionType.vocal),
           ),
         ],
       ),
@@ -629,6 +717,136 @@ class _AddFillBlanksDialog extends StatefulWidget {
 
   @override
   State<_AddFillBlanksDialog> createState() => _AddFillBlanksDialogState();
+}
+
+class _AddVocalQuestionDialog extends StatefulWidget {
+  final Function(Map<String, dynamic>) onAdd;
+  final Map<String, dynamic>? initialQuestion;
+
+  const _AddVocalQuestionDialog({
+    required this.onAdd,
+    this.initialQuestion,
+  });
+
+  @override
+  State<_AddVocalQuestionDialog> createState() =>
+      _AddVocalQuestionDialogState();
+}
+
+class _AddVocalQuestionDialogState extends State<_AddVocalQuestionDialog> {
+  late TextEditingController _questionController;
+  late TextEditingController _keywordsController;
+  String _selectedLanguage = 'English';
+  final List<String> _languages = [
+    'English',
+    'Telugu',
+    'Tamil',
+    'Malayalam',
+    'Hindi'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _questionController = TextEditingController(
+      text: widget.initialQuestion?['question'] ?? '',
+    );
+    _keywordsController = TextEditingController(
+      text: widget.initialQuestion?['keywords']?.join(', ') ?? '',
+    );
+    _selectedLanguage = widget.initialQuestion?['language'] ?? 'English';
+  }
+
+  @override
+  void dispose() {
+    _questionController.dispose();
+    _keywordsController.dispose();
+    super.dispose();
+  }
+
+  void _saveQuestion() {
+    if (_questionController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a question')),
+      );
+      return;
+    }
+
+    final keywords = _keywordsController.text
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    widget.onAdd({
+      'question': _questionController.text.trim(),
+      'language': _selectedLanguage,
+      'keywords': keywords,
+    });
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Vocal Question'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownButtonFormField<String>(
+              value: _selectedLanguage,
+              decoration: const InputDecoration(
+                labelText: 'Preferred Language',
+                border: OutlineInputBorder(),
+              ),
+              items: _languages
+                  .map((language) => DropdownMenuItem(
+                        value: language,
+                        child: Text(language),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedLanguage = value!;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _questionController,
+              decoration: const InputDecoration(
+                labelText: 'Question',
+                border: OutlineInputBorder(),
+                hintText: 'Ask your question here',
+              ),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _keywordsController,
+              decoration: const InputDecoration(
+                labelText: 'Keywords (comma separated)',
+                border: OutlineInputBorder(),
+                hintText: 'key1, key2, key3',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _saveQuestion,
+          child: const Text('Add Question'),
+        ),
+      ],
+    );
+  }
 }
 
 class _AddFillBlanksDialogState extends State<_AddFillBlanksDialog> {

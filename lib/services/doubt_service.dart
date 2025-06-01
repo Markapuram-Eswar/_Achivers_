@@ -8,6 +8,7 @@ class DoubtService {
     required String studentRollNumber,
     required String message,
     String? imageUrl,
+    String? subject,
     required String response,
     required DateTime timestamp,
   }) async {
@@ -18,6 +19,7 @@ class DoubtService {
           .collection('doubts')
           .add({
         'message': message,
+        'subject': subject,
         'imageUrl': imageUrl,
         'response': response,
         'timestamp': timestamp,
