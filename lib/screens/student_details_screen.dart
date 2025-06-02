@@ -11,9 +11,10 @@ class StudentDetailsScreen extends StatefulWidget {
 
 class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
   final StudentService _studentService = StudentService();
-  final List<String> _classes = List.generate(12, (index) => 'Class ${index + 1}');
+  final List<String> _classes =
+      List.generate(12, (index) => 'Class ${index + 1}');
   final List<String> _sections = ['A', 'B', 'C', 'D'];
-  
+
   String? _selectedClass;
   String? _selectedSection;
   final TextEditingController _searchController = TextEditingController();
@@ -59,9 +60,10 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
       } else {
         _filteredStudents = _students.where((student) {
           final name = student['name']?.toString().toLowerCase() ?? '';
-          final rollNumber = student['rollNumber']?.toString().toLowerCase() ?? '';
+          final rollNumber =
+              student['rollNumber']?.toString().toLowerCase() ?? '';
           final searchQuery = query.toLowerCase();
-          
+
           return name.contains(searchQuery) || rollNumber.contains(searchQuery);
         }).toList();
       }
@@ -78,10 +80,12 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
       _filteredStudents = _students.where((student) {
         final studentClass = student['class']?.toString();
         final studentSection = student['section']?.toString();
-        
-        bool matchesClass = _selectedClass == null || studentClass == _selectedClass;
-        bool matchesSection = _selectedSection == null || studentSection == _selectedSection;
-        
+
+        bool matchesClass =
+            _selectedClass == null || studentClass == _selectedClass;
+        bool matchesSection =
+            _selectedSection == null || studentSection == _selectedSection;
+
         return matchesClass && matchesSection;
       }).toList();
     });
@@ -94,7 +98,7 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
       );
       return;
     }
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -215,7 +219,8 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                         child: Text('No students found'),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
                         itemCount: _filteredStudents.length,
                         itemBuilder: (context, index) {
                           final student = _filteredStudents[index];
@@ -225,22 +230,30 @@ class _StudentDetailsScreenState extends State<StudentDetailsScreen> {
                               leading: CircleAvatar(
                                 backgroundColor: Colors.blue[100],
                                 child: Text(
-                                  (student['name'] ?? 'S').substring(0, 1).toUpperCase(),
-                                  style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold),
+                                  (student['name'] ?? 'S')
+                                      .substring(0, 1)
+                                      .toUpperCase(),
+                                  style: const TextStyle(
+                                      color: Colors.blue,
+                                      fontWeight: FontWeight.bold),
                                 ),
                               ),
                               title: Text(
                                 student['name'] ?? 'No Name',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Roll No: ${student['rollNumber'] ?? 'N/A'}'),
-                                  Text('Contact: ${student['contact'] ?? 'N/A'}'),
+                                  Text(
+                                      'Roll No: ${student['rollNumber'] ?? 'N/A'}'),
+                                  Text(
+                                      'Contact: ${student['contact'] ?? 'N/A'}'),
                                 ],
                               ),
-                              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                              trailing:
+                                  const Icon(Icons.arrow_forward_ios, size: 16),
                               onTap: () {
                                 // Navigate to individual student details if needed
                               },
