@@ -5,6 +5,8 @@ import 'help_screen.dart';
 import 'videos_screen.dart';
 import 'tts.dart';
 import 'edit_profile_page.dart';
+import 'textbook_docx_page.dart';
+import 'textbook_pdf_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -168,6 +170,24 @@ class _ProfilePageState extends State<ProfilePage> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const VideoFlowScreen(),
+                      ),
+                    );
+                  }),
+                  _buildMenuItem('Textbook (DOCX)', Icons.description,
+                      onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TextbookDocxPage(),
+                      ),
+                    );
+                  }),
+                  _buildMenuItem('Textbook (PDF)', Icons.picture_as_pdf,
+                      onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TextbookPdfPage(),
                       ),
                     );
                   }),
