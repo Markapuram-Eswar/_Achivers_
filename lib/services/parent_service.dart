@@ -10,7 +10,7 @@ class ParentService {
       final userType = await AuthService.getUserType();
 
       if (userId == null || userType != 'parent') {
-        throw 'Unauthorized: Only parents can access this profile.';
+        throw 'Unauthorized: Only parents can access this profile. sd';
       }
 
       // Fetch parent document
