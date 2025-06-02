@@ -75,6 +75,7 @@ class AuthService {
         'role': 'teacher',
         'id': employeeId,
       };
+      print('User Data: $userData');
       await _saveUserSession('teacher', employeeId);
       return userData;
     } catch (e) {
