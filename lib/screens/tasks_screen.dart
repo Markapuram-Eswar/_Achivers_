@@ -37,7 +37,6 @@ class TasksScreenState extends State<TasksScreen> {
       'progress': 0.75,
       'tasks': 12,
       'completed': 9,
-      'isVocal': true,
     },
     {
       'title': 'History',
@@ -47,26 +46,6 @@ class TasksScreenState extends State<TasksScreen> {
       'progress': 0.30,
       'tasks': 10,
       'completed': 3,
-    },
-    {
-      'title': 'Vocal Testing',
-      'subtitle': 'Practice your speaking and pronunciation',
-      'icon': 'https://img.icons8.com/isometric/50/microphone.png',
-      'color': Colors.teal,
-      'progress': 0.0,
-      'tasks': 0,
-      'completed': 0,
-      'isVocalTesting': true,
-    },
-    {
-      'title': 'Vocal Practice',
-      'subtitle': 'Practice speaking and listening skills',
-      'icon': 'https://img.icons8.com/isometric/50/microphone.png',
-      'color': Colors.red,
-      'progress': 0.20,
-      'tasks': 5,
-      'completed': 1,
-      'isVocal': true,
     },
   ];
 
@@ -247,28 +226,12 @@ class TasksScreenState extends State<TasksScreen> {
 
   Widget _buildTaskCard(Map<String, dynamic> item, BuildContext context) {
     void _navigateToSubject(Map<String, dynamic> subject) {
-      if (subject['isVocalTesting'] == true) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const KeywordMatchPage(),
-          ),
-        );
-      } else if (subject['isVocal'] == true) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const STTKeywordMatcher(),
-          ),
-        );
-      } else {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TaskDetailScreen(subject: subject['title']),
-          ),
-        );
-      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TaskDetailScreen(subject: subject['title']),
+        ),
+      );
     }
 
     return GestureDetector(
@@ -394,9 +357,10 @@ class TaskDetailScreen extends StatefulWidget {
   State<TaskDetailScreen> createState() => _TaskDetailScreenState();
 }
 
-class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerProviderStateMixin {
+class _TaskDetailScreenState extends State<TaskDetailScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   // Sample task data - in a real app, this would come from an API or database
   final List<Map<String, dynamic>> _upcomingTasks = [];
   final List<Map<String, dynamic>> _currentTasks = [];
@@ -412,7 +376,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
   void _loadTasks() {
     // Sample tasks for each subject
     final now = DateTime.now();
-    
+
     // Sample data - in a real app, this would come from an API or database
     final allTasks = [
       {
@@ -451,8 +415,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
     for (var task in allTasks) {
       final dueDate = task['dueDate'] as DateTime;
       final isPast = dueDate.isBefore(now.subtract(const Duration(hours: 1)));
-      final isCurrent = dueDate.isAfter(now) && dueDate.isBefore(now.add(const Duration(days: 1)));
-      
+      final isCurrent = dueDate.isAfter(now) &&
+          dueDate.isBefore(now.add(const Duration(days: 1)));
+
       if (isPast) {
         _pastTasks.add(task);
       } else if (isCurrent) {
@@ -466,7 +431,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = date.difference(DateTime(now.year, now.month, now.day));
-    
+
     if (difference.inDays == 0) {
       return 'Today at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } else if (difference.inDays == 1) {
@@ -479,14 +444,22 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
   }
 
   String _getWeekday(int weekday) {
-    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
     return weekdays[weekday - 1];
   }
 
   Color _getTaskColor(DateTime dueDate) {
     final now = DateTime.now();
     final difference = dueDate.difference(now);
-    
+
     if (dueDate.isBefore(now)) {
       return Colors.red.shade100; // Past due
     } else if (difference.inHours < 24) {
@@ -498,7 +471,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
     }
   }
 
-  Widget _buildTaskList(List<Map<String, dynamic>> tasks, {bool showCompleted = false}) {
+  Widget _buildTaskList(List<Map<String, dynamic>> tasks,
+      {bool showCompleted = false}) {
     if (tasks.isEmpty) {
       return Center(
         child: Column(
@@ -539,7 +513,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
         final task = tasks[index];
         final dueDate = task['dueDate'] as DateTime;
         final isCompleted = task['completed'] as bool? ?? false;
-        
+
         return Dismissible(
           key: Key('task_${task['title']}_$index'),
           background: Container(
@@ -574,7 +548,8 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             decoration: BoxDecoration(
-              color: isCompleted ? Colors.grey.shade100 : _getTaskColor(dueDate),
+              color:
+                  isCompleted ? Colors.grey.shade100 : _getTaskColor(dueDate),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -603,7 +578,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isCompleted ? Colors.green : Colors.grey.shade400,
+                            color: isCompleted
+                                ? Colors.green
+                                : Colors.grey.shade400,
                             width: 2,
                           ),
                         ),
@@ -624,12 +601,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                decoration: isCompleted ? TextDecoration.lineThrough : null,
-                                color: isCompleted ? Colors.grey : Colors.black87,
+                                decoration: isCompleted
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                                color:
+                                    isCompleted ? Colors.grey : Colors.black87,
                               ),
                             ),
                             const SizedBox(height: 4),
-                            if (task['description'] != null && task['description'].isNotEmpty)
+                            if (task['description'] != null &&
+                                task['description'].isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 6),
                                 child: Text(
@@ -637,7 +618,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: Colors.grey.shade700,
-                                    decoration: isCompleted ? TextDecoration.lineThrough : null,
+                                    decoration: isCompleted
+                                        ? TextDecoration.lineThrough
+                                        : null,
                                   ),
                                 ),
                               ),
