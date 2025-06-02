@@ -24,6 +24,17 @@ class _DoubtsPageState extends State<DoubtsPage> {
   bool _isLoading = false;
   final ScrollController _scrollController = ScrollController();
   String? _currentUserId; // Will store the student's roll number
+  String? _selectedSubject;
+  final List<String> _subjects = [
+    'Mathematics',
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'English',
+    'Social Studies',
+    'Computer Science',
+    'Other'
+  ];
 
   @override
   void initState() {
@@ -96,7 +107,7 @@ class _DoubtsPageState extends State<DoubtsPage> {
   }
 
   Future<void> _saveDoubtToDatabase(String message, String response,
-      {String? imageUrl}) async {
+      {String? imageUrl, String? subject}) async {
     if (_currentUserId == null) return;
 
     try {
@@ -104,6 +115,7 @@ class _DoubtsPageState extends State<DoubtsPage> {
       await _doubtService.saveDoubt(
         studentRollNumber: _currentUserId!,
         message: message,
+        subject: subject,
         imageUrl: imageUrl,
         response: response,
         timestamp: DateTime.now(),
@@ -126,23 +138,38 @@ class _DoubtsPageState extends State<DoubtsPage> {
   Future<void> _sendText(String text) async {
     if (text.trim().isEmpty) return;
 
+    // Include subject in the prompt if selected
+    final String prompt = _selectedSubject != null 
+        ? '[$_selectedSubject] $text'
+        : text;
+
     setState(() {
-      _messages.insert(0, {"type": "text", "content": text, "isUser": true});
+      _messages.insert(0, {
+        "type": "text", 
+        "content": _selectedSubject != null 
+            ? '($_selectedSubject) $text' 
+            : text, 
+        "isUser": true
+      });
       _isLoading = true;
     });
     _scrollToBottom();
 
     try {
       /* Backend TODO: Integrate with external AI service for response generation */
-      final response = await _geminiService.generateResponse(text);
+      final response = await _geminiService.generateResponse(prompt);
       setState(() {
         _messages
             .insert(0, {"type": "text", "content": response, "isUser": false});
       });
       _scrollToBottom();
 
-      // Save the doubt and response to Firestore
-      await _saveDoubtToDatabase(text, response);
+      // Save the doubt and response to Firestore with subject
+      await _saveDoubtToDatabase(
+        _selectedSubject != null ? '[$_selectedSubject] $text' : text, 
+        response,
+        subject: _selectedSubject,
+      );
     } catch (e) {
       /* Backend TODO: Handle error from external AI service */
       if (kDebugMode) {
@@ -373,6 +400,41 @@ class _DoubtsPageState extends State<DoubtsPage> {
       body: SafeArea(
         child: Column(
           children: [
+            // Subject selection dropdown
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.white,
+              child: DropdownButtonFormField<String>(
+                value: _selectedSubject,
+                decoration: InputDecoration(
+                  labelText: 'Select Subject (optional)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                ),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('No specific subject'),
+                  ),
+                  ..._subjects.map((subject) => DropdownMenuItem<String>(
+                        value: subject,
+                        child: Text(subject),
+                      )),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedSubject = value;
+                  });
+                },
+                isExpanded: true,
+                icon: Icon(Icons.arrow_drop_down, color: Colors.purple.shade700),
+              ),
+            ),
             Expanded(
               child: _messages.isEmpty
                   ? Center(

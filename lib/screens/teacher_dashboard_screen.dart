@@ -8,6 +8,7 @@ import 'student_details_screen.dart';
 import '../services/auth_service.dart';
 import '../services/teacher_profile_service.dart';
 
+
 void main() {
   runApp(const MaterialApp(
     home: TeacherDashboardScreen(),
@@ -190,7 +191,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const ClassAssignmentsScreen(),
+                builder: (context) => const EnterMarksScreen(),
               ),
             );
           },
