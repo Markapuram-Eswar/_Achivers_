@@ -103,6 +103,7 @@ class _LoginPageState extends State<LoginPage> {
           await authService.loginTeacher(_idController.text.trim());
           if (mounted) {
             Navigator.pushReplacementNamed(context, '/teacher-dashboard');
+            print(mounted);
           }
           break;
 
@@ -150,182 +151,172 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SingleChildScrollView(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 40),
+                // Logo
+                Image.asset(
+                  'assets/images/logo.png',
+                  width: MediaQuery.of(context).size.width * 0.4,
+                  fit: BoxFit.contain,
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                const SizedBox(height: 24),
+                const Text(
+                  'Login',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                // Login As
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Spacer(flex: 2),
-                    // Logo
-                    Image.asset(
-                      'assets/images/logo.png',
-                      width: MediaQuery.of(context).size.width * 0.4,
-                      fit: BoxFit.contain,
-                    ),
-                    const SizedBox(height: 24),
                     const Text(
-                      'Login',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                      'Login As',
+                      style: TextStyle(fontSize: 15, color: Colors.black),
+                    ),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildRoleRadio(0, 'Student'),
+                          const SizedBox(width: 8),
+                          _buildRoleRadio(1, 'Teacher'),
+                          const SizedBox(width: 8),
+                          _buildRoleRadio(2, 'Parent'),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 18),
-                    // Login As
-                    Column(
+                  ],
+                ),
+                const SizedBox(height: 18),
+                // Card-like login form
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 16,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 28),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Login As',
-                          style: TextStyle(fontSize: 15, color: Colors.black),
+                          'Login',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
+                        const SizedBox(height: 18),
+                        // ID Field
+                        Form(
+                          key: _formKey,
+                          child: Column(
                             children: [
-                              _buildRoleRadio(0, 'Student'),
-                              const SizedBox(width: 8),
-                              _buildRoleRadio(1, 'Teacher'),
-                              const SizedBox(width: 8),
-                              _buildRoleRadio(2, 'Parent'),
+                              TextFormField(
+                                controller: _idController,
+                                decoration: InputDecoration(
+                                  hintText: 'Enter ${_getIdFieldLabel()}',
+                                  border: const UnderlineInputBorder(),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(vertical: 8),
+                                  prefixIcon:
+                                      const Icon(Icons.person_outline),
+                                ),
+                                validator: _validateId,
+                                enabled: !_isLoading,
+                              ),
+                              const SizedBox(height: 24),
                             ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        // Login Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _login,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFFB547),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(
+                                    'Login as ${_getRoleName()}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 18),
-                    // Card-like login form
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 16,
-                              offset: Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 28),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Login',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              const SizedBox(height: 18),
-                              // ID Field
-                              Form(
-                                key: _formKey,
-                                child: Column(
-                                  children: [
-                                    TextFormField(
-                                      controller: _idController,
-                                      decoration: InputDecoration(
-                                        hintText: 'Enter ${_getIdFieldLabel()}',
-                                        border: const UnderlineInputBorder(),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                vertical: 8),
-                                        prefixIcon:
-                                            const Icon(Icons.person_outline),
-                                      ),
-                                      validator: _validateId,
-                                      enabled: !_isLoading,
-                                    ),
-                                    const SizedBox(height: 24),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              // Login Button
-                              SizedBox(
-                                width: double.infinity,
-                                height: 48,
-                                child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _login,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFFB547),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(24),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : Text(
-                                          'Login as ${_getRoleName()}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                ),
-                              ),
-                            ],
-                          ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                // Register link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "Don't have an account? ",
+                      style: TextStyle(fontSize: 13, color: Colors.black87),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const RegisterPage()),
+                        );
+                      },
+                      child: const Text(
+                        'Register',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFFFFB547),
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 18),
-                    // Register link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          "Don't have an account? ",
-                          style: TextStyle(fontSize: 13, color: Colors.black87),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => const RegisterPage()),
-                            );
-                          },
-                          child: const Text(
-                            'Register',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFFFFB547),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(flex: 3),
                   ],
                 ),
-              ),
-            );
-          },
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
         ),
       ),
     );
