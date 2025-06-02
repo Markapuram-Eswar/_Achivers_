@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../services/auth_service.dart';
+import '../services/teacher_profile_service.dart';
 
 class TeacherProfilePage extends StatefulWidget {
   const TeacherProfilePage({super.key});
@@ -12,22 +14,24 @@ class TeacherProfilePage extends StatefulWidget {
 class _TeacherProfilePageState extends State<TeacherProfilePage> {
   File? _image;
   final ImagePicker _picker = ImagePicker();
+  Map<String, dynamic>? teacherData;
+  bool isLoading = true;
 
   // Sample teacher data - in a real app, this would come from a database
-  final Map<String, dynamic> teacherData = {
-    'name': 'Mrs. Lakshmi',
-    'subject': 'Mathematics',
-    'experience': '15 years',
-    'education': 'M.Sc., B.Ed.',
-    'email': 'lakshmi@school.edu',
-    'phone': '+91 9876543210',
-    'classes': ['10-A', '9-B', '11-A'],
-    'achievements': [
-      'Best Teacher Award 2022',
-      'Published 3 academic papers',
-      'Mentored winning team in Math Olympiad'
-    ]
-  };
+  // final Map<String, dynamic> teacherData = {
+  //   'name': 'Mrs. Lakshmi',
+  //   'subject': 'Mathematics',
+  //   'experience': '15 years',
+  //   'education': 'M.Sc., B.Ed.',
+  //   'email': 'lakshmi@school.edu',
+  //   'phone': '+91 9876543210',
+  //   'classes': ['10-A', '9-B', '11-A'],
+  //   'achievements': [
+  //     'Best Teacher Award 2022',
+  //     'Published 3 academic papers',
+  //     'Mentored winning team in Math Olympiad'
+  //   ]
+  // };
 
   Future<void> _pickImage() async {
     final XFile? pickedFile =
@@ -42,7 +46,22 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   @override
   void initState() {
     super.initState();
-    /* Backend TODO: Fetch teacher profile data from backend (API call, database read) */
+    fetchTeacherProfile();
+  }
+
+  Future<void> fetchTeacherProfile() async {
+    final String? teacherId = await AuthService.getUserId();
+    if (teacherId == null) {
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
+    final profile = await ProfileService().getTeacherProfile(teacherId);
+    setState(() {
+      teacherData = profile;
+      isLoading = false;
+    });
   }
 
   @override
@@ -87,6 +106,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   }
 
   Widget _buildProfileHeader() {
+    final String teacherName = teacherData?['name'] ?? 'Teacher';
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -145,7 +165,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
           ),
           const SizedBox(height: 16),
           Text(
-            teacherData['name'],
+            '${teacherData?['name']}',
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -160,7 +180,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              '${teacherData['subject']} • ${teacherData['experience']} experience',
+              '${teacherData?['subject']} • ${teacherData?['experience']} experience',
               style: TextStyle(
                 color: Colors.blue.shade700,
                 fontWeight: FontWeight.w500,
@@ -183,9 +203,9 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
           children: [
             _buildSectionHeader('Personal Information', Icons.info_outline),
             const SizedBox(height: 16),
-            _buildInfoItem('Education', teacherData['education'], Icons.school),
-            _buildInfoItem('Email', teacherData['email'], Icons.email),
-            _buildInfoItem('Phone', teacherData['phone'], Icons.phone),
+            _buildInfoItem('Education', teacherData?['education'], Icons.school),
+            _buildInfoItem('Email', teacherData?['email'], Icons.email),
+            _buildInfoItem('Phone', teacherData?['phone'], Icons.phone),
           ],
         ),
       ),
@@ -207,7 +227,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
               spacing: 8,
               runSpacing: 8,
               children: List.generate(
-                teacherData['classes'].length,
+                teacherData?['classes'].length,
                 (index) => Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -217,7 +237,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                     border: Border.all(color: Colors.blue.shade200),
                   ),
                   child: Text(
-                    teacherData['classes'][index],
+                    teacherData?['classes'][index],
                     style: TextStyle(color: Colors.blue.shade700),
                   ),
                 ),
@@ -241,7 +261,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
             _buildSectionHeader('Achievements', Icons.emoji_events),
             const SizedBox(height: 16),
             ...List.generate(
-              teacherData['achievements'].length,
+              teacherData?['achievements'].length,
               (index) => Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
@@ -252,7 +272,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        teacherData['achievements'][index],
+                        teacherData?['achievements'][index],
                         style: const TextStyle(fontSize: 14),
                       ),
                     ),

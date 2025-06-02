@@ -5,6 +5,9 @@ import 'schedule_event_screen.dart';
 import 'create_test_screen.dart';
 import 'teacher_profile_page.dart';
 import 'student_details_screen.dart';
+import '../services/auth_service.dart';
+import '../services/teacher_profile_service.dart';
+
 
 void main() {
   runApp(const MaterialApp(
@@ -20,10 +23,28 @@ class TeacherDashboardScreen extends StatefulWidget {
 }
 
 class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
+  Map<String, dynamic>? teacherData;
+  bool isLoading = true;
+
   @override
   void initState() {
     super.initState();
-    /* Backend TODO: Fetch teacher dashboard data from backend (API call, database read) */
+    fetchTeacherProfile();
+  }
+
+  Future<void> fetchTeacherProfile() async {
+    final String? teacherId = await AuthService.getUserId();
+    if (teacherId == null) {
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
+    final profile = await ProfileService().getTeacherProfile(teacherId);
+    setState(() {
+      teacherData = profile;
+      isLoading = false;
+    });
   }
 
   Future<bool> _onWillPop() async {
@@ -49,6 +70,11 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
@@ -101,6 +127,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   }
 
   Widget _buildWelcomeCard() {
+    final String teacherName = teacherData?['name'] ?? 'Teacher';
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -112,9 +139,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Welcome back, Mrs. Lakshmi',
-            style: TextStyle(
+          Text(
+            'Welcome back, $teacherName',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -164,7 +191,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const ClassAssignmentsScreen(),
+                builder: (context) => const EnterMarksScreen(),
               ),
             );
           },

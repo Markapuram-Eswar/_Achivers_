@@ -103,6 +103,7 @@ class _LoginPageState extends State<LoginPage> {
           await authService.loginTeacher(_idController.text.trim());
           if (mounted) {
             Navigator.pushReplacementNamed(context, '/teacher-dashboard');
+            print(mounted);
           }
           break;
 

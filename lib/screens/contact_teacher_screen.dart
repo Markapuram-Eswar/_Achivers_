@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 class ContactTeacherScreen extends StatelessWidget {
   const ContactTeacherScreen({super.key});
@@ -10,26 +11,31 @@ class ContactTeacherScreen extends StatelessWidget {
         'name': 'Mrs. Lakshmi',
         'subject': 'Mathematics',
         'image': 'L',
+        'phone': '+911234567890', // Add phone numbers for WhatsApp
       },
       {
         'name': 'Mr. Ravi Kumar',
         'subject': 'Science',
         'image': 'R',
+        'phone': '+911234567891',
       },
       {
         'name': 'Mrs. Priya Sharma',
         'subject': 'English',
         'image': 'P',
+        'phone': '+911234567892',
       },
       {
         'name': 'Mr. Suresh Reddy',
         'subject': 'Social Studies',
         'image': 'S',
+        'phone': '+911234567893',
       },
       {
         'name': 'Mrs. Anjali Gupta',
         'subject': 'Hindi',
         'image': 'A',
+        'phone': '+911234567894',
       },
     ];
 
@@ -83,29 +89,27 @@ class ContactTeacherScreen extends StatelessWidget {
                   Row(
                     children: [
                       _buildContactButton(
-                        icon: Icons.message,
-                        label: 'Message',
-                        onPressed: () {
-                          /* Backend TODO: Send message to teacher via backend (API call, database write) */
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  'Sending message to [1m${teacher['name']}...'),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _buildContactButton(
                         icon: Icons.connect_without_contact,
-                        label: 'Connect',
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content:
-                                  Text('Connecting with ${teacher['name']}...'),
-                            ),
-                          );
+                        label: 'WhatsApp',
+                        onPressed: () async {
+                          final phoneNumber = teacher['phone']!;
+                          final message =
+                              'Hello ${teacher['name']}, I would like to connect with you regarding ${teacher['subject']}.';
+                          final whatsappUrl =
+                              'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}';
+
+                          if (await canLaunchUrlString(whatsappUrl)) {
+                            await launchUrlString(whatsappUrl);
+                          } else {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Could not launch WhatsApp'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
                         },
                       ),
                     ],

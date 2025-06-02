@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../services/teacher_profile_service.dart';
+import '../services/student_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/post_attendance_service.dart';
 
 class TakeAttendanceScreen extends StatefulWidget {
   const TakeAttendanceScreen({super.key});
@@ -8,36 +13,24 @@ class TakeAttendanceScreen extends StatefulWidget {
 }
 
 class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
-  final Map<String, bool> _attendance = {
-    'Eswar Kumar': false,
-    'Aditi Sharma': false,
-    'Arjun Patel': false,
-    'Diya Singh': false,
-    'Praveen Kumar': false,
-    'Arjun Reddy': false,
-    'Kavya Gupta': false,
-    'Krishna Rao': false,
-    'Meera': false,
-    'Nikhil': false,
-    'Priya': false,
-    'Rahul': false,
-    'Riya Desai': false,
-    'Sai Prasad': false,
-    'Shreyas': false,
-  };
-
-  DateTime _selectedDate = DateTime.now();
+  List<String> _classes = [];
   String? _selectedClass;
+  // List<String> _sections = [];
   String? _selectedSection;
+  // String? _selectedSubject;
+  Map<String, bool> _attendance = {};
+  bool _isLoading = true;
+  bool _isSubmitting = false;
+  DateTime _selectedDate = DateTime.now();
 
-  final List<String> _classes = [
-    'Grade 6',
-    'Grade 7',
-    'Grade 8',
-    'Grade 9',
-    'Grade 10'
-  ];
-  final List<String> _sections = ['A', 'B', 'C', 'D'];
+  // final List<String> _classes = [
+  //   'Grade 6',
+  //   'Grade 7',
+  //   'Grade 8',
+  //   'Grade 9',
+  //   'Grade 10'
+  // ];
+   final List<String> _sections = ['A', 'B', 'C', 'D'];
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -56,7 +49,80 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
   @override
   void initState() {
     super.initState();
-    /* Backend TODO: Fetch attendance data from backend (API call, database read) */
+    fetchTeacherClasses();
+  }
+
+  Future<void> fetchTeacherClasses() async {
+    final teacherId = await AuthService.getUserId();
+    if (teacherId == null) return;
+    final profile = await ProfileService().getTeacherProfile(teacherId);
+    if (profile != null && profile['classes'] != null) {
+      setState(() {
+        _classes = List<String>.from(profile['classes']);
+        // _selectedSubject = profile['subject'];
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> fetchStudentsForClass(String className, String? section) async {
+    setState(() {
+      _isLoading = true;
+    });
+    final students = await StudentService().getStudentsByClass(className, section);
+    setState(() {
+      _attendance = {for (var s in students) s['name']: false};
+      _isLoading = false;
+    });
+  }
+
+ void _submitAttendance() async {
+    // Validate required selections
+    if (_selectedClass == null || _selectedSection == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select class and section')),
+      );
+      return;
+    }
+    
+    if (_attendance.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No students to submit')),
+      );
+      return;
+    }
+    
+    setState(() => _isSubmitting = true);
+    
+    try {
+      final teacherId = await AuthService.getUserId();
+      if (teacherId == null) throw Exception('Teacher not logged in');
+      
+      await AttendanceService().submitAttendance(
+        classId: _selectedClass!,
+        section: _selectedSection!,
+        date: _selectedDate,
+        attendanceRecords: _attendance,
+        teacherId: teacherId,
+      );
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Attendance saved successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -124,6 +190,7 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                             setState(() {
                               _selectedClass = value;
                             });
+                            //fetchStudentsForClass(value!, _selectedSection);
                           },
                         ),
                       ),
@@ -151,6 +218,7 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                             setState(() {
                               _selectedSection = value;
                             });
+                            fetchStudentsForClass(_selectedClass!, value);
                           },
                         ),
                       ),
@@ -340,47 +408,56 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
           ),
 
           // Submit Button
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.white,
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon:
-                    const Icon(Icons.check_circle_outline, color: Colors.white),
-                label: const Text(
-                  'Submit Attendance',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue[700],
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                ),
-                onPressed: _submitAttendance,
+         // In the submit button section of the build method
+Container(
+  padding: const EdgeInsets.all(16),
+  color: Colors.white,
+  child: SizedBox(
+    width: double.infinity,
+    child: ElevatedButton.icon(
+      icon: _isSubmitting
+          ? const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
               ),
-            ),
-          ),
+            )
+          : const Icon(Icons.check_circle_outline, color: Colors.white),
+      label: Text(
+        _isSubmitting ? 'Submitting...' : 'Submit Attendance',
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _isSubmitting ? Colors.blue[400] : Colors.blue[700],
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: 0,
+      ),
+      onPressed: _isSubmitting ? null : _submitAttendance,
+    ),
+  ),
+),
         ],
       ),
     );
   }
 
-  void _submitAttendance() async {
-    /* Backend TODO: Submit attendance to backend (API call, database write) */
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Attendance saved successfully'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    Navigator.pop(context);
-  }
+  // void _submitAttendance() async {
+  //   /* Backend TODO: Submit attendance to backend (API call, database write) */
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     const SnackBar(
+  //       content: Text('Attendance saved successfully'),
+  //       backgroundColor: Colors.green,
+  //     ),
+  //   );
+  //   Navigator.pop(context);
+  // }
 }
