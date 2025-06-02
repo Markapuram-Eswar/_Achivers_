@@ -2,32 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:async';
 
-void main() => runApp(const VideoSequenceApp());
+void main() => runApp(VideoSequenceApp());
 
 class VideoSequenceApp extends StatelessWidget {
-  const VideoSequenceApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Video Flow App',
       theme: ThemeData.dark(),
-      home: const VideoFlowScreen(),
+      home: VideoFlowScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class VideoFlowScreen extends StatefulWidget {
-  const VideoFlowScreen({super.key});
-
   @override
-  VideoFlowScreenState createState() => VideoFlowScreenState();
+  _VideoFlowScreenState createState() => _VideoFlowScreenState();
 }
 
-class VideoFlowScreenState extends State<VideoFlowScreen> {
+class _VideoFlowScreenState extends State<VideoFlowScreen> {
   VideoPlayerController? _controller;
-  int correctFlagIndex = 0; // index of correct button (door)
+  int correctFlagIndex = 0;
   int correctSelections = 0;
   int wrongOrTimeoutCount = 0;
   final int maxCorrectSelections = 3;
@@ -38,16 +34,14 @@ class VideoFlowScreenState extends State<VideoFlowScreen> {
   @override
   void initState() {
     super.initState();
-    /* Backend TODO: Fetch videos list from backend (API call, database read) */
-    _playVideo('assets/videos/park_theme.mp4', onEnd: () {
-      _playVideo('assets/videos/park_theme.mp4', onEnd: _showButtonPage);
+    _playVideo('assets/videos/intro.mp4', onEnd: () {
+      _playVideo('assets/videos/2.mp4', onEnd: _showButtonPage);
     });
   }
 
   void _playVideo(String path, {required VoidCallback onEnd}) async {
     _disposeController();
-    // Add a short delay before initializing the new controller
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(Duration(milliseconds: 200));
     _controller = VideoPlayerController.asset(path)
       ..initialize().then((_) {
         setState(() {});
@@ -65,7 +59,7 @@ class VideoFlowScreenState extends State<VideoFlowScreen> {
   void _showButtonPage() {
     if (_terminated) return;
 
-    _buttonTimer = Timer(const Duration(seconds: 10), () {
+    _buttonTimer = Timer(Duration(seconds: 10), () {
       Navigator.of(context).pop();
       _handleTimeout();
     });
@@ -76,7 +70,7 @@ class VideoFlowScreenState extends State<VideoFlowScreen> {
       builder: (_) {
         return AlertDialog(
           backgroundColor: Colors.grey[850],
-          title: const Text('Choose a Door'),
+          title: Text('Choose a Door'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: List.generate(4, (index) {
@@ -101,23 +95,28 @@ class VideoFlowScreenState extends State<VideoFlowScreen> {
   void _handleButtonSelection(int index) {
     if (_terminated) return;
 
-    _playVideo('assets/video${index + 3}.mp4', onEnd: () {
+    // Map door index to specific video (3.mp4 to 6.mp4)
+    String selectedVideo = 'assets/videos/${index + 3}.mp4';
+
+    _playVideo(selectedVideo, onEnd: () {
       if (index == correctFlagIndex) {
         correctSelections++;
         if (correctSelections >= maxCorrectSelections) {
           _terminated = true;
-          _playVideo('assets/videos/park_theme.mp4', onEnd: () {});
+          _playVideo('assets/videos/5.mp4', onEnd: () {}); // success video
         } else {
-          _playVideo('assets/videos/park_theme.mp4', onEnd: _showButtonPage);
+          _playVideo('assets/videos/8.mp4',
+              onEnd: _showButtonPage); // next round
         }
       } else {
         wrongOrTimeoutCount++;
         if (wrongOrTimeoutCount >= maxWrongOrTimeouts) {
           _terminated = true;
-          // Terminate immediately without playing video9
+          _playVideo('assets/videos/6.mp4', onEnd: () {}); // failure video
         } else {
-          _playVideo('assets/videos/park_theme.mp4', onEnd: () {
-            _playVideo('assets/videos/park_theme.mp4', onEnd: _showButtonPage);
+          _playVideo('assets/videos/7.mp4', onEnd: () {
+            _playVideo('assets/videos/2.mp4',
+                onEnd: _showButtonPage); // retry round
           });
         }
       }
@@ -130,10 +129,10 @@ class VideoFlowScreenState extends State<VideoFlowScreen> {
     wrongOrTimeoutCount++;
     if (wrongOrTimeoutCount >= maxWrongOrTimeouts) {
       _terminated = true;
-      // Terminate immediately without playing video9
+      _playVideo('assets/videos/9.mp4', onEnd: () {}); // timeout end
     } else {
-      _playVideo('assets/videos/park_theme.mp4', onEnd: () {
-        _playVideo('assets/videos/park_theme.mp4', onEnd: _showButtonPage);
+      _playVideo('assets/videos/7.mp4', onEnd: () {
+        _playVideo('assets/videos/2.mp4', onEnd: _showButtonPage);
       });
     }
   }
@@ -154,11 +153,11 @@ class VideoFlowScreenState extends State<VideoFlowScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Video Flow')),
+      appBar: AppBar(title: Text('Video Flow')),
       body: Center(
         child: _controller != null && _controller!.value.isInitialized
             ? Container(
-                margin: const EdgeInsets.all(12),
+                margin: EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.indigo, width: 2),
                   borderRadius: BorderRadius.circular(12),
@@ -171,7 +170,7 @@ class VideoFlowScreenState extends State<VideoFlowScreen> {
                   ),
                 ),
               )
-            : const CircularProgressIndicator(),
+            : CircularProgressIndicator(),
       ),
     );
   }

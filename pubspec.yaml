@@ -84,6 +84,18 @@ flutter:
     - assets/videos/park_theme.mp4
     - assets/images/logo.png
     - assets/images/avatar-girl-svgrepo-com.svg
+    - assets/videos/2.mp4
+    - assets/videos/3.mp4
+    - assets/videos/4.mp4
+    - assets/videos/5.mp4
+    - assets/videos/6.mp4
+    - assets/videos/7.mp4
+    - assets/videos/8.mp4
+    - assets/videos/9.mp4
+    - assets/videos/intro.mp4
+    - assets/videos/tr1.mp4
+    - assets/videos/tr2.mp4
+    - assets/videos/tr10.mp4
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
