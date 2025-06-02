@@ -1,24 +1,24 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'auth_service.dart';
 
 class StudentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  Future<List<Map<String, dynamic>>> getAllStudents() async {
+
+  Future<List<Map<String, dynamic>>> getStudentsByClass(String className, String? section) async {
     try {
-      final userType = await AuthService.getUserType();
-      if (userType != 'admin' && userType != 'teacher') {
-        throw 'Unauthorized: Only admins or teachers can access student details.';
+      // Start with base query for class
+      Query query = _firestore.collection('students').where('class', isEqualTo: className);
+
+      // Add section filter only if provided and non-empty
+      if (section != null && section.isNotEmpty) {
+        query = query.where('section', isEqualTo: section);
       }
 
-      final querySnapshot = await _firestore.collection('students').get();
-
-      return querySnapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id; // Include document ID
-        return data;
-      }).toList();
+      final snapshot = await query.get();
+      return snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
     } catch (e) {
-      rethrow;
+      print('Error fetching students: $e');
+      // Return empty list on error (or rethrow based on your error handling strategy)
+      return [];
     }
   }
 }
