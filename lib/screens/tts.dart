@@ -18,6 +18,7 @@ class SimpleReadingTrackerState extends State<SimpleReadingTracker> {
 
   final String paragraph =
       "Flutter is an open-source UI toolkit by Google, Could you please clarify where you want to add more paragraphs? If you're referring to adding more instructional or descriptive paragraphs in your app's UI (e.g., Flutter & Dart), or if you want to add more sample text—like 80% of developers use Flutter—for speech-to-text reading!";
+
   List<String> _textWords = [];
   List<String> _comparisonWords = [];
   final Set<int> _readIndices = {};
@@ -84,6 +85,13 @@ class SimpleReadingTrackerState extends State<SimpleReadingTracker> {
     _currentWordIndex = 0;
   }
 
+  void _restartListening() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (mounted && _isListening) {
+      _startListening();
+    }
+  }
+
   void _startListening() async {
     if (await Permission.microphone.status != PermissionStatus.granted) {
       await _checkPermissions();
@@ -93,17 +101,21 @@ class SimpleReadingTrackerState extends State<SimpleReadingTracker> {
     bool available = await _speech.initialize(
       onStatus: (status) {
         debugPrint('Speech status: $status');
-        if (status == 'done' && _isListening && mounted) {
-          _startListening();
+        if (status == 'notListening' && _isListening && mounted) {
+          _restartListening();
         }
       },
       onError: (val) {
-        debugPrint('Speech error: $val');
-        if (mounted) {
-          setState(() => _isListening = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Speech error: $val')),
-          );
+        debugPrint('Speech error: ${val.errorMsg}');
+        if (val.permanent) {
+          if (mounted) {
+            setState(() => _isListening = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Mic Error: ${val.errorMsg}')),
+            );
+          }
+        } else {
+          _restartListening();
         }
       },
     );
@@ -113,29 +125,47 @@ class SimpleReadingTrackerState extends State<SimpleReadingTracker> {
       _speech.listen(
         onResult: (val) {
           if (!mounted) return;
+
           final rawSpokenText = val.recognizedWords;
-          final spokenText = _cleanTextForComparison(rawSpokenText);
+          final spokenWords =
+              _cleanTextForDisplay(_cleanTextForComparison(rawSpokenText));
+
           debugPrint('Raw spoken: "$rawSpokenText"');
-          debugPrint('Cleaned spoken: "$spokenText"');
+          debugPrint('Spoken words: $spokenWords');
 
-          if (_currentWordIndex >= _comparisonWords.length) return;
-          final expected = _comparisonWords[_currentWordIndex];
-          debugPrint('Expected (cleaned): "$expected"');
+          setState(() {
+            // Clear previous results from current word onwards
+            for (int i = _currentWordIndex; i < _textWords.length; i++) {
+              _readIndices.remove(i);
+              _skippedIndices.remove(i);
+            }
 
-          if (spokenText.contains(expected)) {
-            setState(() {
-              _readIndices.add(_currentWordIndex);
-              _currentWordIndex++;
-            });
-          }
-          // Removed SnackBar for expected word feedback
+            // Compare spoken words to expected words starting from current index
+            for (int i = 0; i < spokenWords.length; i++) {
+              final spokenWord = spokenWords[i];
+              int targetIndex = _currentWordIndex + i;
+
+              if (targetIndex >= _comparisonWords.length) break;
+
+              final expectedWord = _comparisonWords[targetIndex];
+
+              if (spokenWord == expectedWord) {
+                _readIndices.add(targetIndex);
+                _skippedIndices.remove(targetIndex);
+              } else {
+                _skippedIndices.add(targetIndex);
+                _readIndices.remove(targetIndex);
+              }
+            }
+
+            // Advance current word index over all correctly read words
+            int newIndex = _currentWordIndex;
+            while (_readIndices.contains(newIndex)) {
+              newIndex++;
+            }
+            _currentWordIndex = newIndex;
+          });
         },
-      );
-    } else if (mounted) {
-      setState(() => _isListening = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Failed to initialize speech recognition')),
       );
     }
   }
@@ -220,12 +250,12 @@ class SimpleReadingTrackerState extends State<SimpleReadingTracker> {
                       final index = entry.key;
                       final word = entry.value;
                       final isCurrent = index == _currentWordIndex;
-                      final color = _skippedIndices.contains(index)
-                          ? Colors.red[600]!
-                          : _readIndices.contains(index)
-                              ? Colors.green[600]!
-                              : isCurrent
-                                  ? Colors.blue[600]!
+                      final color = isCurrent
+                          ? Colors.blue[600]!
+                          : _skippedIndices.contains(index)
+                              ? Colors.red[600]!
+                              : _readIndices.contains(index)
+                                  ? Colors.green[600]!
                                   : Colors.black87;
 
                       return AnimatedDefaultTextStyle(
@@ -279,6 +309,7 @@ class SimpleReadingTrackerState extends State<SimpleReadingTracker> {
               ],
             ),
           ),
+          const SizedBox(height: 10),
         ],
       ),
     );
@@ -287,7 +318,6 @@ class SimpleReadingTrackerState extends State<SimpleReadingTracker> {
   @override
   void dispose() {
     _stopListening();
-    _speech.cancel();
     super.dispose();
   }
 }
