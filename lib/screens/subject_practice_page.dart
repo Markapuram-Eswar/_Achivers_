@@ -385,13 +385,17 @@ class SubjectPracticePageState extends State<SubjectPracticePage> {
                 title: const Text('Read Textbook'),
                 subtitle: const Text('Study the topic in detail'),
                 onTap: () {
+                  // Debug print to inspect the data structure
+                  print('Subject data: ${widget.subjectData}');
+                  print('Topic data: $topic');
+                  
                   Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => TextbookPage(
-                        subjectId: widget.subjectData,
-                        topicId: topic,
+                        subjectId: widget.subjectData['id']?.toString() ?? '',
+                        topicId: topic['id']?.toString() ?? '',
                       ),
                     ),
                   );

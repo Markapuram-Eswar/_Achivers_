@@ -10,6 +10,8 @@ android {
    namespace = "com.achievers.app"
 
     compileSdk = flutter.compileSdkVersion
+    ndkVersion = "27.0.12077973"
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -28,9 +30,6 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        ndk {
-            version = "25.1.8937393"
-        }
     }
 
     buildTypes {
