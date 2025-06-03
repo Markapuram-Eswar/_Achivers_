@@ -30,7 +30,7 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
   final int maxWrongOrTimeouts = 3;
   Timer? _buttonTimer;
   bool _terminated = false;
-  int grade = 1;
+  int grade = 4;
   int sec = 20;
 
   @override
