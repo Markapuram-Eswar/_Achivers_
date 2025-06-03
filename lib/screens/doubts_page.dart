@@ -398,6 +398,7 @@ class _DoubtsPageState extends State<DoubtsPage> {
         ],
       ),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             // Subject selection dropdown
@@ -437,77 +438,96 @@ class _DoubtsPageState extends State<DoubtsPage> {
             ),
             Expanded(
               child: _messages.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.school_outlined,
-                            size: 72,
-                            color: Colors.purple.shade200,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Hello! I\'m your Study Buddy!',
-                            style: TextStyle(
-                              fontSize: 24,
-                              color: Colors.purple.shade700,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Ask me anything about your studies',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            margin: const EdgeInsets.symmetric(horizontal: 32),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.purple.shade100
-                                      .withValues(alpha: 0.3),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
+                  ? SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: MediaQuery.of(context).size.height - 200,
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(height: 20),
+                              Icon(
+                                Icons.school_outlined,
+                                size: 72,
+                                color: Colors.purple.shade200,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Hello! I\'m your Study Buddy!',
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  color: Colors.purple.shade700,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                              ],
-                            ),
-                            child: Column(
-                              children: [
-                                _buildSuggestion(
-                                  'How do I solve quadratic equations?',
-                                  Icons.functions,
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                                child: Text(
+                                  'Ask me anything about your studies',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
-                                const Divider(),
-                                _buildSuggestion(
-                                  'Explain photosynthesis process',
-                                  Icons.nature,
+                              ),
+                              const SizedBox(height: 24),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                margin: const EdgeInsets.symmetric(horizontal: 32),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.purple.shade100
+                                          .withOpacity(0.3),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                                const Divider(),
-                                _buildSuggestion(
-                                  'What are Newton\'s laws of motion?',
-                                  Icons.speed,
+                                child: Column(
+                                  children: [
+                                    _buildSuggestion(
+                                      'How do I solve quadratic equations?',
+                                      Icons.functions,
+                                    ),
+                                    const Divider(),
+                                    _buildSuggestion(
+                                      'Explain photosynthesis process',
+                                      Icons.nature,
+                                    ),
+                                    const Divider(),
+                                    _buildSuggestion(
+                                      'What are Newton\'s laws of motion?',
+                                      Icons.speed,
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(height: 20),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     )
                   : ListView.builder(
                       controller: _scrollController,
                       reverse: true,
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                        top: 16,
+                        left: 8,
+                        right: 8,
+                      ),
                       itemCount: _messages.length,
-                      itemBuilder: (_, index) =>
-                          _buildMessage(_messages[index]),
+                      itemBuilder: (_, index) => _buildMessage(_messages[index]),
                     ),
             ),
             if (_isLoading)
@@ -538,12 +558,17 @@ class _DoubtsPageState extends State<DoubtsPage> {
                 ),
               ),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 8,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 8,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, -2),
                   ),

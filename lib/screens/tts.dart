@@ -31,6 +31,12 @@ class SimpleReadingTrackerState extends State<SimpleReadingTracker> {
     _checkPermissions();
   }
 
+  // Request microphone/audio permission
+  Future<bool> requestAudioPermission() async {
+    final status = await Permission.microphone.request();
+    return status == PermissionStatus.granted;
+  }
+
   Future<void> _checkPermissions() async {
     final status = await Permission.microphone.request();
     if (status != PermissionStatus.granted && mounted) {

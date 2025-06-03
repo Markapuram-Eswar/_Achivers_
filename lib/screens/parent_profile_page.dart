@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+
+import 'edit_parent_profile_page.dart';
+
+void main() {
+  runApp(const MaterialApp(
+    home: ParentProfilePage(),
+  ));
+}
 import '../services/parent_service.dart';
 
 class ParentProfilePage extends StatefulWidget {
@@ -14,6 +22,14 @@ class _ParentProfilePageState extends State<ParentProfilePage> {
   final ParentService _parentService = ParentService();
   File? _image;
   final ImagePicker _picker = ImagePicker();
+
+  // Sample parent data
+  final Map<String, dynamic> parentData = {
+    'name': 'Eswar Kumar',
+    'email': 'eswar@example.com',
+    'phone': '+91 9876543210',
+    'address': '123 Main St, City, State',
+  };
   bool _isLoading = true;
   Map<String, dynamic>? _parentData;
 
@@ -124,8 +140,6 @@ class _ParentProfilePageState extends State<ParentProfilePage> {
                 padding: const EdgeInsets.all(20),
                 children: [
                   _buildInfoSection(),
-                  const SizedBox(height: 20),
-                  _buildChildrenSection(),
                   const SizedBox(height: 20),
                   _buildMenuSection(),
                 ],
@@ -286,9 +300,27 @@ class _ParentProfilePageState extends State<ParentProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildMenuItem('Edit Profile', Icons.edit),
-        _buildMenuItem('Change Password', Icons.lock_outline),
-        _buildMenuItem('Notification Settings', Icons.notifications_outlined),
+        _buildMenuItem('Edit Profile', Icons.edit, onTap: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  EditParentProfilePage(parentData: parentData),
+            ),
+          );
+          if (result != null) {
+            setState(() {
+              parentData.addAll(result);
+            });
+          }
+        }),
+        _buildMenuItem('Change Password', Icons.lock_outline, onTap: () {
+          _showChangePasswordDialog();
+        }),
+        _buildMenuItem('Notification Settings', Icons.notifications_outlined,
+            onTap: () {
+          _showNotificationSettingsDialog();
+        }),
         const SizedBox(height: 10),
         _buildMenuItem('Logout', Icons.logout, color: Colors.red, onTap: () {
           // Show confirmation dialog
@@ -416,6 +448,183 @@ class _ParentProfilePageState extends State<ParentProfilePage> {
         trailing: Icon(Icons.arrow_forward_ios,
             size: 16, color: Colors.grey.shade400),
       ),
+    );
+  }
+}
+
+extension _ChangePasswordDialog on _ParentProfilePageState {
+  void _showChangePasswordDialog() {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        bool showCurrent = false;
+        bool showNew = false;
+        bool showConfirm = false;
+        String? errorText;
+
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: const [
+                Icon(Icons.lock_outline, color: Colors.blue),
+                SizedBox(width: 8),
+                Text('Change Password'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: currentPasswordController,
+                    obscureText: !showCurrent,
+                    decoration: InputDecoration(
+                      labelText: 'Current Password',
+                      prefixIcon: const Icon(Icons.lock),
+                      suffixIcon: IconButton(
+                        icon: Icon(showCurrent
+                            ? Icons.visibility
+                            : Icons.visibility_off),
+                        onPressed: () =>
+                            setState(() => showCurrent = !showCurrent),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: newPasswordController,
+                    obscureText: !showNew,
+                    decoration: InputDecoration(
+                      labelText: 'New Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                            showNew ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () => setState(() => showNew = !showNew),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: confirmPasswordController,
+                    obscureText: !showConfirm,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm New Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(showConfirm
+                            ? Icons.visibility
+                            : Icons.visibility_off),
+                        onPressed: () =>
+                            setState(() => showConfirm = !showConfirm),
+                      ),
+                    ),
+                  ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      errorText ?? 'error',
+                      style: const TextStyle(color: Colors.red, fontSize: 13),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.pop(context),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[800],
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Change Password'),
+                onPressed: () {
+                  setState(() => errorText = null);
+                  if (currentPasswordController.text.isEmpty ||
+                      newPasswordController.text.isEmpty ||
+                      confirmPasswordController.text.isEmpty) {
+                    setState(() => errorText = 'Please fill all fields');
+                    return;
+                  }
+                  if (newPasswordController.text !=
+                      confirmPasswordController.text) {
+                    setState(() => errorText = 'New passwords do not match');
+                    return;
+                  }
+                  // TODO: Implement password change with backend
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Password changed successfully')),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+extension _NotificationSettingsDialog on _ParentProfilePageState {
+  void _showNotificationSettingsDialog() {
+    bool appNotifications = true;
+    bool emailNotifications = false;
+    bool smsNotifications = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: const Text('Notification Settings'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  title: const Text('App Notifications'),
+                  value: appNotifications,
+                  onChanged: (val) => setState(() => appNotifications = val),
+                ),
+                // SwitchListTile(
+                //   title: const Text('Email Notifications'),
+                //   value: emailNotifications,
+                //   onChanged: (val) => setState(() => emailNotifications = val),
+                // ),
+                // SwitchListTile(
+                //   title: const Text('SMS Notifications'),
+                //   value: smsNotifications,
+                //   onChanged: (val) => setState(() => smsNotifications = val),
+                // ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                child: const Text('Close'),
+                onPressed: () => Navigator.pop(context),
+              ),
+              TextButton(
+                child: const Text('Save'),
+                onPressed: () {
+                  // TODO: Save settings to backend or local storage
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

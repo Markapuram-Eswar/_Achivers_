@@ -1,3 +1,4 @@
+import 'package:achiver_app/screens/contact_teacher_screen.dart';
 import 'package:flutter/material.dart';
 import 'profile_page.dart';
 import 'tasks_screen.dart';
@@ -8,6 +9,12 @@ import 'welcome_page.dart';
 import 'progress_page.dart';
 import 'practice_page.dart';
 import 'due_payments_screen.dart';
+
+void main() {
+  runApp(MyHomePage(
+    selectedTheme: 'Game Display',
+  ));
+}
 
 class MyHomePage extends StatefulWidget {
   final VoidCallback? onThemeToggle;
@@ -200,7 +207,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               _buildHomePage(context),
               const AttendanceCalendarPage(),
-              const DoubtsPage(),
+              const ContactTeacherScreen(),
               const ProfilePage(),
             ],
           ),
@@ -256,10 +263,10 @@ class _MyHomePageState extends State<MyHomePage> {
                     () => const ProgressPage(),
                     'https://img.icons8.com/isometric/50/positive-dynamic.png'),
                 _buildFeatureCard(
-                    'Due Payments',
-                    Colors.teal,
-                    () => const DuePaymentsScreen(),
-                    'https://img.icons8.com/color/48/rupee.png'),
+                    'Doubts',
+                    Colors.redAccent,
+                    () => const DoubtsPage(),
+                    'https://img.icons8.com/isometric/50/ask-question.png'),
               ],
             ),
           ],

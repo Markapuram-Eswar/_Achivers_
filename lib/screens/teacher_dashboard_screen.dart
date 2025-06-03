@@ -8,7 +8,6 @@ import 'student_details_screen.dart';
 import '../services/auth_service.dart';
 import '../services/teacher_profile_service.dart';
 
-
 void main() {
   runApp(const MaterialApp(
     home: TeacherDashboardScreen(),
@@ -87,11 +86,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             style: TextStyle(color: Colors.white),
           ),
           actions: [
-            IconButton(
-              icon:
-                  const Icon(Icons.notifications_outlined, color: Colors.white),
-              onPressed: () {},
-            ),
             IconButton(
               icon: const Icon(Icons.person_outline, color: Colors.white),
               onPressed: () {

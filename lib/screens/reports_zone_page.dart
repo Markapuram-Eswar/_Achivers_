@@ -25,46 +25,6 @@ class ReportsZonePage extends StatelessWidget {
             fontWeight: FontWeight.w500,
           ),
         ),
-        actions: [
-          InkWell(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("No new notifications.")),
-              );
-            },
-            child: Container(
-              width: 32,
-              height: 32,
-              margin: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: NetworkImage(
-                      'https://img.icons8.com/isometric/50/appointment-reminders.png'),
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-          ),
-          InkWell(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Menu not implemented.")),
-              );
-            },
-            child: Container(
-              width: 32,
-              height: 32,
-              margin: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: const BoxDecoration(
-                image: DecorationImage(
-                  image: NetworkImage(
-                      'https://img.icons8.com/ios-filled/50/menu--v1.png'),
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
       // Keeping the existing navigation bar, not adding a new one
       body: FutureBuilder<UserData>(
