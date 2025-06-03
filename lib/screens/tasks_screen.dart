@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'vocal_page.dart';
-import 'vocal_testing_page';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -82,145 +80,170 @@ class TasksScreenState extends State<TasksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Tasks', style: TextStyle(color: Colors.white)),
-        backgroundColor: Colors.teal,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header section
-            const Text(
-              'Your Tasks Overview',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Track and manage your academic tasks',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Upcoming tasks section
-            const Text(
-              'Upcoming Tasks',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 140,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _recentTasks.take(2).length,
-                itemBuilder: (context, index) {
-                  final item = _recentTasks[index];
-                  return Container(
-                    width: 200,
-                    margin: const EdgeInsets.only(right: 16),
-                    decoration: BoxDecoration(
-                      color: item['color'].withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: item['color'].withOpacity(0.3)),
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item['title'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            Text(
-                              item['subject'],
-                              style: TextStyle(
-                                color: item['color'],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              item['dueDate'],
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: item['color'],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                item['status'],
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // All subjects section
-            const Text(
-              'Tasks by Subject',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 1.2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-              itemCount: _taskItems.length,
-              itemBuilder: (context, index) {
-                final item = _taskItems[index];
-                return _buildTaskCard(item, context);
-              },
-            ),
-          ],
+        appBar: AppBar(
+          title: const Text('My Tasks', style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.teal,
+          iconTheme: const IconThemeData(color: Colors.white),
         ),
-      ),
+        body: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 32, // Account for padding
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Header section
+                    const Text(
+                      'Your Tasks Overview',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Track and manage your academic tasks',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Upcoming tasks section
+                    const Text(
+                      'Upcoming Tasks',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 160, // Slightly increased height
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _recentTasks.take(2).length,
+                        itemExtent: 220, // Fixed width for each item
+                        itemBuilder: (context, index) {
+                          final item = _recentTasks[index];
+                          return Container(
+                            width: 200,
+                            margin: const EdgeInsets.only(right: 16),
+                            decoration: BoxDecoration(
+                              color: item['color'].withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: item['color'].withOpacity(0.3)),
+                            ),
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item['title'],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    Text(
+                                      item['subject'],
+                                      style: TextStyle(
+                                        color: item['color'],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      item['dueDate'],
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: item['color'],
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        item['status'],
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // All subjects section
+                    const Text(
+                      'Tasks by Subject',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 1.1, // Slightly reduced aspect ratio
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        mainAxisExtent: 180, // Fixed height for each grid item
+                      ),
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                      ),
+                      itemCount: _taskItems.length,
+                      itemBuilder: (context, index) {
+                        final item = _taskItems[index];
+                        return _buildTaskCard(item, context);
+                      },
+                    ),
+                  ],
+                ),
+              )),
+        ));
+  }
+
+  // Helper function to handle long text with ellipsis
+  Widget _buildTextWithEllipsis(String text, TextStyle style,
+      {int maxLines = 1}) {
+    return Text(
+      text,
+      style: style,
+      maxLines: maxLines,
+      overflow: TextOverflow.ellipsis,
     );
   }
 
@@ -283,26 +306,27 @@ class TasksScreenState extends State<TasksScreen> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
+                        child: _buildTextWithEllipsis(
                           item['title'],
-                          style: const TextStyle(
-                            fontSize: 16,
+                          const TextStyle(
+                            fontSize: 15,
                             fontWeight: FontWeight.bold,
                           ),
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   // Progress text
-                  Text(
-                    '${item['completed']} of ${item['tasks']} tasks completed',
-                    style: const TextStyle(
-                      fontSize: 12,
+                  _buildTextWithEllipsis(
+                    '${item['completed']} of ${item['tasks']} tasks',
+                    const TextStyle(
+                      fontSize: 11,
                       color: Colors.grey,
+                      height: 1.2,
                     ),
+                    maxLines: 2,
                   ),
                   const SizedBox(height: 4),
                   // Progress percentage
@@ -673,6 +697,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: Text(
@@ -718,13 +743,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen>
           ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildTaskList(_currentTasks),
-          _buildTaskList(_upcomingTasks),
-          _buildTaskList(_pastTasks, showCompleted: true),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) => TabBarView(
+          controller: _tabController,
+          children: [
+            _buildTaskList(_currentTasks),
+            _buildTaskList(_upcomingTasks),
+            _buildTaskList(_pastTasks, showCompleted: true),
+          ],
+        ),
       ),
     );
   }
