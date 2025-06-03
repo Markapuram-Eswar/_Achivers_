@@ -1,3 +1,4 @@
+import 'package:achiver_app/screens/reports_zone_page.dart';
 import 'package:flutter/material.dart';
 import 'leave_application_screen.dart';
 import 'contact_teacher_screen.dart';
@@ -81,10 +82,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               _buildQuickActions(context),
               const SizedBox(height: 20),
               _buildAttendanceAndGrades(),
-              const SizedBox(height: 20),
-              _buildUpcomingEvents(),
-              const SizedBox(height: 20),
-              _buildFeesSection(),
             ],
           ),
         ),
@@ -188,13 +185,13 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               ),
             ),
             _buildActionButton(
-              'Progress',
+              'Reports\nZone',
               Icons.assessment_rounded,
               Colors.purple[400]!,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ProgressPage(),
+                  builder: (context) => ReportsZonePage(),
                 ),
               ),
             ),
@@ -213,7 +210,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         ),
       ],
     );
-  }
+  };
 
   Widget _buildActionButton(
     String title,
@@ -327,140 +324,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildUpcomingEvents() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Upcoming Events',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 15),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 2,
-          itemBuilder: (context, index) {
-            return Card(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.purple[50],
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(Icons.event, color: Colors.purple[700]),
-                ),
-                title: Text(index == 0
-                    ? 'Parent-Teacher Meeting'
-                    : 'Annual Sports Day'),
-                subtitle: Text(index == 0
-                    ? 'May 15, 2024 • 2:00 PM'
-                    : 'May 20, 2024 • 9:00 AM'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Fee Status',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 15),
-        Container(
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey[300]!,
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Term 2 Fees',
-                    style: TextStyle(
-                      color: Colors.grey[800],
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Paid',
-                      style: TextStyle(
-                        color: Colors.green[700],
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              LinearProgressIndicator(
-                value: 1.0,
-                backgroundColor: Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.green[400]!),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Paid: ₹25,000',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    'Due: ₹0',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
