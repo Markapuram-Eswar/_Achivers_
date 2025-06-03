@@ -62,7 +62,8 @@ class ContactTeacherScreen extends StatelessWidget {
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text('Discard changes?'),
-                  content: const Text('Are you sure you want to go back? Any unsaved changes will be lost.'),
+                  content: const Text(
+                      'Are you sure you want to go back? Any unsaved changes will be lost.'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
@@ -75,10 +76,10 @@ class ContactTeacherScreen extends StatelessWidget {
                   ],
                 ),
               );
-              
+
               if (shouldPop != true) return;
             }
-            
+
             if (context.mounted) {
               if (previousScreen != null) {
                 Navigator.pushReplacement(
@@ -162,16 +163,14 @@ class ContactTeacherScreen extends StatelessWidget {
     required String label,
     required VoidCallback onPressed,
   }) {
-    return Expanded(
-      child: ElevatedButton.icon(
-        icon: Icon(icon, size: 20),
-        label: Text(label),
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blue[900],
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
+    return ElevatedButton.icon(
+      icon: Icon(icon, size: 20),
+      label: Text(label),
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blue[900],
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
       ),
     );
   }
