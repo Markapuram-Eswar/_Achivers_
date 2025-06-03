@@ -180,7 +180,10 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ContactTeacherScreen(),
+                  builder: (context) => ContactTeacherScreen(
+                    showExitConfirmation: false,
+                    previousScreen: const ParentDashboardScreen(),
+                  ),
                 ),
               ),
             ),

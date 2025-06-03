@@ -8,7 +8,6 @@ import 'timetable_page.dart';
 import 'welcome_page.dart';
 import 'progress_page.dart';
 import 'practice_page.dart';
-import 'due_payments_screen.dart';
 
 void main() {
   runApp(MyHomePage(

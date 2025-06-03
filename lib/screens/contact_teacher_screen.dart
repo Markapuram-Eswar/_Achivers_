@@ -2,7 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 class ContactTeacherScreen extends StatelessWidget {
-  const ContactTeacherScreen({super.key});
+  final bool showExitConfirmation;
+  final Widget? previousScreen;
+
+  const ContactTeacherScreen({
+    super.key,
+    this.showExitConfirmation = false,
+    this.previousScreen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +56,40 @@ class ContactTeacherScreen extends StatelessWidget {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () async {
+            if (showExitConfirmation) {
+              final shouldPop = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Discard changes?'),
+                  content: const Text('Are you sure you want to go back? Any unsaved changes will be lost.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Discard'),
+                    ),
+                  ],
+                ),
+              );
+              
+              if (shouldPop != true) return;
+            }
+            
+            if (context.mounted) {
+              if (previousScreen != null) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => previousScreen!),
+                );
+              } else {
+                Navigator.pop(context);
+              }
+            }
+          },
         ),
       ),
       body: ListView.builder(
