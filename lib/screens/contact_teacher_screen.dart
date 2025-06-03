@@ -8,34 +8,34 @@ class ContactTeacherScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<Map<String, String>> teachers = [
       {
-        'name': 'Mrs. Lakshmi',
+        'name': 'Mr. test',
         'subject': 'Mathematics',
         'image': 'L',
-        'phone': '+911234567890', // Add phone numbers for WhatsApp
+        'phone': '918106645476', // Add phone numbers for WhatsApp
       },
       {
-        'name': 'Mr. Ravi Kumar',
+        'name': 'Mr.anirudd ',
         'subject': 'Science',
         'image': 'R',
-        'phone': '+911234567891',
+        'phone': '917032933445',
       },
       {
         'name': 'Mrs. Priya Sharma',
         'subject': 'English',
         'image': 'P',
-        'phone': '+911234567892',
+        'phone': '911234567892',
       },
       {
         'name': 'Mr. Suresh Reddy',
         'subject': 'Social Studies',
         'image': 'S',
-        'phone': '+911234567893',
+        'phone': '911234567893',
       },
       {
         'name': 'Mrs. Anjali Gupta',
         'subject': 'Hindi',
         'image': 'A',
-        'phone': '+911234567894',
+        'phone': '911234567894',
       },
     ];
 
@@ -92,24 +92,18 @@ class ContactTeacherScreen extends StatelessWidget {
                         icon: Icons.connect_without_contact,
                         label: 'WhatsApp',
                         onPressed: () async {
-                          final phoneNumber = teacher['phone']!;
+                          String phoneNumber =
+                              teacher['phone']!; // e.g., '918106645476'
+                          // Remove '+' if present
+                          if (phoneNumber.startsWith('+')) {
+                            phoneNumber = phoneNumber.substring(1);
+                          }
                           final message =
                               'Hello ${teacher['name']}, I would like to connect with you regarding ${teacher['subject']}.';
                           final whatsappUrl =
                               'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}';
-
-                          if (await canLaunchUrlString(whatsappUrl)) {
-                            await launchUrlString(whatsappUrl);
-                          } else {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Could not launch WhatsApp'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
+                          await launchUrlString(whatsappUrl,
+                              mode: LaunchMode.externalApplication);
                         },
                       ),
                     ],
