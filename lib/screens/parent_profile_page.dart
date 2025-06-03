@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-
+import '../services/parent_service.dart';
 import 'edit_parent_profile_page.dart';
 
 void main() {
@@ -18,6 +18,7 @@ class ParentProfilePage extends StatefulWidget {
 }
 
 class _ParentProfilePageState extends State<ParentProfilePage> {
+  final ParentService _parentService = ParentService();
   File? _image;
   final ImagePicker _picker = ImagePicker();
 
@@ -28,6 +29,38 @@ class _ParentProfilePageState extends State<ParentProfilePage> {
     'phone': '+91 9876543210',
     'address': '123 Main St, City, State',
   };
+  bool _isLoading = true;
+  Map<String, dynamic>? _parentData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadParentData();
+  }
+
+  Future<void> _loadParentData() async {
+    try {
+      final parentData = await _parentService.getParentProfile();
+      if (mounted) {
+        setState(() {
+          _parentData = parentData;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading profile: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   Future<void> _pickImage() async {
     final XFile? pickedFile =
@@ -41,6 +74,48 @@ class _ParentProfilePageState extends State<ParentProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        appBar: AppBar(
+          backgroundColor: Colors.blue[900],
+          elevation: 0,
+          title: const Text(
+            'Parent Profile',
+            style: TextStyle(color: Colors.white),
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_parentData == null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        appBar: AppBar(
+          backgroundColor: Colors.blue[900],
+          elevation: 0,
+          title: const Text(
+            'Parent Profile',
+            style: TextStyle(color: Colors.white),
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: const Center(
+          child: Text('Failed to load profile data'),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
@@ -135,7 +210,7 @@ class _ParentProfilePageState extends State<ParentProfilePage> {
           ),
           const SizedBox(height: 16),
           Text(
-            parentData['name'],
+            _parentData!['name'] ?? 'No Name',
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -166,9 +241,58 @@ class _ParentProfilePageState extends State<ParentProfilePage> {
           children: [
             _buildSectionHeader('Contact Information', Icons.contact_page),
             const SizedBox(height: 16),
-            _buildInfoItem('Email', parentData['email'], Icons.email),
-            _buildInfoItem('Phone', parentData['phone'], Icons.phone),
-            _buildInfoItem('Address', parentData['address'], Icons.home),
+            _buildInfoItem(
+                'Phone', _parentData!['phone'] ?? 'N/A', Icons.phone),
+            if (_parentData!['email'] != null)
+              _buildInfoItem('Email', _parentData!['email'], Icons.email),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChildrenSection() {
+    final children = _parentData!['children'] as List<Map<String, dynamic>>;
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSectionHeader('Children', Icons.child_care),
+            const SizedBox(height: 16),
+            ...children.map<Widget>((child) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_outline, color: Colors.blue[700]),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              child['name'] ?? 'No Name',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              'Class ${child['class']} - Section ${child['section']}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
           ],
         ),
       ),
