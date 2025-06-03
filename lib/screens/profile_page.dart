@@ -278,7 +278,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const VideoFlowScreen()),
+                          builder: (context) => VideoFlowScreen()),
                     );
                   }),
                   const SizedBox(height: 20),

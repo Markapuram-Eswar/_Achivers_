@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-
+import '../services/parent_service.dart';
 import 'edit_parent_profile_page.dart';
 
 void main() {
@@ -9,7 +9,6 @@ void main() {
     home: ParentProfilePage(),
   ));
 }
-import '../services/parent_service.dart';
 
 class ParentProfilePage extends StatefulWidget {
   const ParentProfilePage({super.key});
@@ -64,7 +63,8 @@ class _ParentProfilePageState extends State<ParentProfilePage> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    final XFile? pickedFile =
+        await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _image = File(pickedFile.path);
@@ -179,9 +179,11 @@ class _ParentProfilePageState extends State<ParentProfilePage> {
                     child: CircleAvatar(
                       radius: 50,
                       backgroundColor: Colors.blue.shade50,
-                      backgroundImage: _image != null ? FileImage(_image!) : null,
+                      backgroundImage:
+                          _image != null ? FileImage(_image!) : null,
                       child: _image == null
-                          ? Icon(Icons.person, size: 50, color: Colors.blue.shade300)
+                          ? Icon(Icons.person,
+                              size: 50, color: Colors.blue.shade300)
                           : null,
                     ),
                   ),
@@ -239,7 +241,8 @@ class _ParentProfilePageState extends State<ParentProfilePage> {
           children: [
             _buildSectionHeader('Contact Information', Icons.contact_page),
             const SizedBox(height: 16),
-            _buildInfoItem('Phone', _parentData!['phone'] ?? 'N/A', Icons.phone),
+            _buildInfoItem(
+                'Phone', _parentData!['phone'] ?? 'N/A', Icons.phone),
             if (_parentData!['email'] != null)
               _buildInfoItem('Email', _parentData!['email'], Icons.email),
           ],
