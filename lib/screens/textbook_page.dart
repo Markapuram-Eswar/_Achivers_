@@ -79,9 +79,9 @@ class _TextbookPageState extends State<TextbookPage> {
           {
             "heading": "Introduction to Biology",
             "paragraph":
-                "Biology is the study of living organisms, divided into many specialized fields...",
+                "Biology is the study of living organisms, divided into many specialized fields...   ",
             "image":
-                "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cell_diagram.svg/1200px-Cell_diagram.svg.png"
+                "https://media.istockphoto.com/id/1322220448/photo/abstract-digital-futuristic-eye.jpg?s=1024x1024&w=is&k=20&c=LEk3Riu7RsJXkWMTEdmQ1yDkgf5F95ScLNZQ4j0P23g="
           },
           {
             "heading": "Cell Structure",
@@ -149,114 +149,198 @@ class _TextbookPageState extends State<TextbookPage> {
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => Navigator.pop(context),
               ),
+              elevation: 2,
             ),
-            body: Padding(
-              padding: const EdgeInsets.all(16.0),
+            body: Container(
+              color: const Color(0xFFF5F7FB),
               child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor:
-                              subjectData['color'].withOpacity(0.2),
-                          child: Image.network(
-                            topicData['icon'],
-                            width: 30,
-                            height: 30,
-                          ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header Card
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Text(
-                            topicData['title'],
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    if (_voices.isNotEmpty) ...[
-                      const Text("Select Voice:"),
-                      DropdownButton<String>(
-                        value: _selectedVoice,
-                        items: _voices
-                            .map<DropdownMenuItem<String>>(
-                                (voice) => DropdownMenuItem<String>(
-                                      value: voice['name'],
-                                      child: Text(voice['name']),
-                                    ))
-                            .toList(),
-                        onChanged: (value) async {
-                          setState(() {
-                            _selectedVoice = value;
-                          });
-                          await _flutterTts.setVoice(
-                              _voices.firstWhere((v) => v['name'] == value));
-                        },
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    ...List.generate(content.length, (index) {
-                      final section = content[index];
-                      final isSpeaking = _currentlySpeakingIndex == index;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 24.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              section['heading'],
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: isSpeaking
-                                    ? Colors.yellow.withOpacity(0.2)
-                                    : null,
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      section['paragraph'],
-                                      style: const TextStyle(fontSize: 16),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: Icon(
-                                      isSpeaking ? Icons.stop : Icons.volume_up,
-                                      color: Colors.blue,
-                                    ),
-                                    onPressed: () =>
-                                        _speak(section['paragraph'], index),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (section.containsKey('image'))
-                              Padding(
-                                padding: const EdgeInsets.only(top: 12.0),
+                        color: subjectData['color'].withOpacity(0.9),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 32,
+                                backgroundColor: Colors.white,
                                 child: Image.network(
-                                  section['image'],
-                                  height: 150,
+                                  topicData['icon'],
+                                  width: 36,
+                                  height: 36,
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      topicData['title'],
+                                      style: const TextStyle(
+                                        fontSize: 26,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      subjectData['name'],
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      if (_voices.isNotEmpty) ...[
+                        const Text(
+                          "Select Voice:",
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 4),
+                        DropdownButton<String>(
+                          value: _selectedVoice,
+                          items: _voices
+                              .map<DropdownMenuItem<String>>(
+                                  (voice) => DropdownMenuItem<String>(
+                                        value: voice['name'],
+                                        child: Text(voice['name']),
+                                      ))
+                              .toList(),
+                          onChanged: (value) async {
+                            setState(() {
+                              _selectedVoice = value;
+                            });
+                            await _flutterTts.setVoice(
+                                _voices.firstWhere((v) => v['name'] == value));
+                          },
+                        ),
+                        const SizedBox(height: 18),
+                      ],
+                      ...List.generate(content.length, (index) {
+                        final section = content[index];
+                        final isSpeaking = _currentlySpeakingIndex == index;
+                        return Column(
+                          children: [
+                            Card(
+                              elevation: isSpeaking ? 8 : 3,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              color: isSpeaking
+                                  ? Colors.yellow.withOpacity(0.15)
+                                  : Colors.white,
+                              child: Padding(
+                                padding: const EdgeInsets.all(18.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Remove the Row with the icon, just show heading and listen button
+                                    Row(
+                                      children: [
+                                        // Icon removed!
+                                        Expanded(
+                                          child: Text(
+                                            section['heading'],
+                                            style: TextStyle(
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.w700,
+                                              color: subjectData['color'],
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: Icon(
+                                            isSpeaking
+                                                ? Icons.stop_circle
+                                                : Icons.volume_up_rounded,
+                                            color: isSpeaking
+                                                ? Colors.red
+                                                : Colors.blue[700],
+                                            size: 28,
+                                          ),
+                                          onPressed: () => _speak(
+                                              section['paragraph'], index),
+                                          tooltip:
+                                              isSpeaking ? "Stop" : "Listen",
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      section['paragraph'],
+                                      style: const TextStyle(
+                                        fontSize: 16.5,
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                    if (section.containsKey('image'))
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 16.0),
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          child: Image.network(
+                                            section['image'],
+                                            height: 160,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (index != content.length - 1)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Divider(
+                                        color: Colors.grey[400],
+                                        thickness: 1,
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8),
+                                      child: Icon(Icons.arrow_downward,
+                                          color: Colors.grey[400], size: 18),
+                                    ),
+                                    Expanded(
+                                      child: Divider(
+                                        color: Colors.grey[400],
+                                        thickness: 1,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                           ],
-                        ),
-                      );
-                    }),
-                  ],
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
             ),

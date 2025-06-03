@@ -1,3 +1,4 @@
+import 'package:achiver_app/screens/due_payments_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -169,7 +170,15 @@ class _ProfilePageState extends State<ProfilePage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const VideoFlowScreen(),
+                        builder: (context) => VideoFlowScreen(),
+                      ),
+                    );
+                  }),
+                  _buildMenuItem('Due Payments', Icons.payment, onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DuePaymentsScreen(),
                       ),
                     );
                   }),

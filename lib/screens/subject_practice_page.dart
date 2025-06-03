@@ -390,8 +390,8 @@ class SubjectPracticePageState extends State<SubjectPracticePage> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => TextbookPage(
-                        subjectData: widget.subjectData,
-                        topicData: topic,
+                        subjectId: widget.subjectData,
+                        topicId: topic,
                       ),
                     ),
                   );

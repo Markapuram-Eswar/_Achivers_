@@ -23,25 +23,36 @@ class VideoFlowScreen extends StatefulWidget {
 
 class _VideoFlowScreenState extends State<VideoFlowScreen> {
   VideoPlayerController? _controller;
-  int correctFlagIndex = 0;
+  int correctFlagIndex = 0; // index of correct button (door)
   int correctSelections = 0;
   int wrongOrTimeoutCount = 0;
   final int maxCorrectSelections = 3;
   final int maxWrongOrTimeouts = 3;
   Timer? _buttonTimer;
   bool _terminated = false;
+  int grade = 1;
+  int sec = 20;
 
   @override
   void initState() {
     super.initState();
-    _playVideo('assets/videos/intro.mp4', onEnd: () {
-      _playVideo('assets/videos/2.mp4', onEnd: _showButtonPage);
-    });
+    if (grade <= 3) {
+      _playVideo('assets/intro1.mp4', onEnd: () {
+        _playVideo('assets/12.mp4', onEnd: _showButtonPage);
+      });
+    } else if (grade > 3 && grade < 7) {
+      _playVideo('assets/intro2.mp4', onEnd: () {
+        _playVideo('assets/22.mp4', onEnd: _showButtonPage);
+      });
+    } else {
+      _playVideo('assets/intro3.mp4', onEnd: () {
+        _playVideo('assets/32.mp4', onEnd: _showButtonPage);
+      });
+    }
   }
 
   void _playVideo(String path, {required VoidCallback onEnd}) async {
     _disposeController();
-    await Future.delayed(Duration(milliseconds: 200));
     _controller = VideoPlayerController.asset(path)
       ..initialize().then((_) {
         setState(() {});
@@ -59,68 +70,163 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
   void _showButtonPage() {
     if (_terminated) return;
 
-    _buttonTimer = Timer(Duration(seconds: 10), () {
+    _buttonTimer = Timer(Duration(seconds: sec), () {
       Navigator.of(context).pop();
       _handleTimeout();
     });
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-        return AlertDialog(
-          backgroundColor: Colors.grey[850],
-          title: Text('Choose a Door'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(4, (index) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5.0),
-                child: ElevatedButton(
-                  onPressed: () {
-                    _buttonTimer?.cancel();
-                    Navigator.of(context).pop();
-                    _handleButtonSelection(index);
-                  },
-                  child: Text('Door ${index + 1}'),
-                ),
-              );
-            }),
-          ),
-        );
-      },
-    );
+    if (grade < 3) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) {
+          return AlertDialog(
+            backgroundColor: Colors.grey[850],
+            title: Text('Choose a Door'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(4, (index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5.0),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _buttonTimer?.cancel();
+                      Navigator.of(context).pop();
+                      _handleButtonSelection(index);
+                    },
+                    child: Text('Door ${index + 1}'),
+                  ),
+                );
+              }),
+            ),
+          );
+        },
+      );
+    } else if (grade > 3 && grade < 7) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) {
+          return AlertDialog(
+            backgroundColor: Colors.grey[850],
+            title: Text('Choose a Door'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(4, (index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5.0),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _buttonTimer?.cancel();
+                      Navigator.of(context).pop();
+                      _handleButtonSelection(index);
+                    },
+                    child: Text('Door ${index + 1}'),
+                  ),
+                );
+              }),
+            ),
+          );
+        },
+      );
+    } else {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) {
+          return AlertDialog(
+            backgroundColor: Colors.grey[850],
+            title: Text('Choose a Door'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(4, (index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5.0),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _buttonTimer?.cancel();
+                      Navigator.of(context).pop();
+                      _handleButtonSelection(index);
+                    },
+                    child: Text('Door ${index + 1}'),
+                  ),
+                );
+              }),
+            ),
+          );
+        },
+      );
+    }
   }
 
   void _handleButtonSelection(int index) {
     if (_terminated) return;
-
-    // Map door index to specific video (3.mp4 to 6.mp4)
-    String selectedVideo = 'assets/videos/${index + 3}.mp4';
-
-    _playVideo(selectedVideo, onEnd: () {
-      if (index == correctFlagIndex) {
-        correctSelections++;
-        if (correctSelections >= maxCorrectSelections) {
-          _terminated = true;
-          _playVideo('assets/videos/5.mp4', onEnd: () {}); // success video
+    if (grade < 3) {
+      _playVideo('assets/1${index + 3}.mp4', onEnd: () {
+        if (index == correctFlagIndex) {
+          correctSelections++;
+          if (correctSelections >= maxCorrectSelections) {
+            _terminated = true;
+            _playVideo('assets/19.mp4', onEnd: () {});
+          } else {
+            _playVideo('assets/12.mp4', onEnd: _showButtonPage);
+          }
         } else {
-          _playVideo('assets/videos/8.mp4',
-              onEnd: _showButtonPage); // next round
+          wrongOrTimeoutCount++;
+          if (wrongOrTimeoutCount >= maxWrongOrTimeouts) {
+            _terminated = true;
+            // Terminate immediately without playing video9
+          } else {
+            _playVideo('assets/18.mp4', onEnd: () {
+              _playVideo('assets/12.mp4', onEnd: _showButtonPage);
+            });
+          }
         }
-      } else {
-        wrongOrTimeoutCount++;
-        if (wrongOrTimeoutCount >= maxWrongOrTimeouts) {
-          _terminated = true;
-          _playVideo('assets/videos/6.mp4', onEnd: () {}); // failure video
+      });
+    } else if (grade > 3 && grade < 7) {
+      _playVideo('assets/3,4,5,6.mp4', onEnd: () {
+        if (index == correctFlagIndex) {
+          correctSelections++;
+          if (correctSelections >= maxCorrectSelections) {
+            _terminated = true;
+            _playVideo('assets/29.mp4', onEnd: () {});
+          } else {
+            _playVideo('assets/22.mp4', onEnd: _showButtonPage);
+          }
         } else {
-          _playVideo('assets/videos/7.mp4', onEnd: () {
-            _playVideo('assets/videos/2.mp4',
-                onEnd: _showButtonPage); // retry round
-          });
+          wrongOrTimeoutCount++;
+          if (wrongOrTimeoutCount >= maxWrongOrTimeouts) {
+            _terminated = true;
+            // Terminate immediately without playing video9
+          } else {
+            _playVideo('assets/28.mp4', onEnd: () {
+              _playVideo('assets/22.mp4', onEnd: _showButtonPage);
+            });
+          }
         }
-      }
-    });
+      });
+    } else {
+      _playVideo('assets/3${index + 3}.mp4', onEnd: () {
+        if (index == correctFlagIndex) {
+          correctSelections++;
+          if (correctSelections >= maxCorrectSelections) {
+            _terminated = true;
+            _playVideo('assets/39.mp4', onEnd: () {});
+          } else {
+            _playVideo('assets/32.mp4', onEnd: _showButtonPage);
+          }
+        } else {
+          wrongOrTimeoutCount++;
+          if (wrongOrTimeoutCount >= maxWrongOrTimeouts) {
+            _terminated = true;
+            // Terminate immediately without playing video9
+          } else {
+            _playVideo('assets/38.mp4', onEnd: () {
+              _playVideo('assets/32.mp4', onEnd: _showButtonPage);
+            });
+          }
+        }
+      });
+    }
   }
 
   void _handleTimeout() {
@@ -129,11 +235,21 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
     wrongOrTimeoutCount++;
     if (wrongOrTimeoutCount >= maxWrongOrTimeouts) {
       _terminated = true;
-      _playVideo('assets/videos/9.mp4', onEnd: () {}); // timeout end
+      // Terminate immediately without playing video9
     } else {
-      _playVideo('assets/videos/7.mp4', onEnd: () {
-        _playVideo('assets/videos/2.mp4', onEnd: _showButtonPage);
-      });
+      if (grade < 3) {
+        _playVideo('assets/17.mp4', onEnd: () {
+          _playVideo('assets/12.mp4', onEnd: _showButtonPage);
+        });
+      } else if (grade > 3 && grade < 7) {
+        _playVideo('assets/27.mp4', onEnd: () {
+          _playVideo('assets/22.mp4', onEnd: _showButtonPage);
+        });
+      } else {
+        _playVideo('assets/37.mp4', onEnd: () {
+          _playVideo('assets/32.mp4', onEnd: _showButtonPage);
+        });
+      }
     }
   }
 
