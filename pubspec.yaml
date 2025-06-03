@@ -105,6 +105,15 @@ flutter:
     - assets/videos/28.mp4
     - assets/videos/29.mp4
     - assets/videos/intro2.mp4
+    - assets/videos/32.mp4
+    - assets/videos/33.mp4
+    - assets/videos/34.mp4
+    - assets/videos/35.mp4
+    - assets/videos/36.mp4
+    - assets/videos/37.mp4
+    - assets/videos/38.mp4
+    - assets/videos/39.mp4
+    - assets/videos/intro3.mp4
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
