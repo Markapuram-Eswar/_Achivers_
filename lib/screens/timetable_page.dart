@@ -167,6 +167,16 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                   shape: BoxShape.circle,
                                 ),
                               ),
+                              headerStyle: HeaderStyle(
+                                titleTextStyle: GoogleFonts.poppins(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                formatButtonTextStyle: GoogleFonts.poppins(),
+                                formatButtonVisible: false,
+                                titleCentered: true,
+                              ),
+                              calendarFormat: CalendarForma
                               calendarBuilders: CalendarBuilders(
                                 defaultBuilder: (context, date, _) {
                                   final color = _getStatusColor(date);

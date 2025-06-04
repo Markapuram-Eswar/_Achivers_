@@ -14,11 +14,13 @@ void main() {
 class ContactTeacherScreen extends StatelessWidget {
   final bool showExitConfirmation;
   final Widget? previousScreen;
+  final bool isFromHomePage;
 
   const ContactTeacherScreen({
     super.key,
     this.showExitConfirmation = false,
     this.previousScreen,
+    this.isFromHomePage = false,
   });
 
   @override
@@ -56,115 +58,110 @@ class ContactTeacherScreen extends StatelessWidget {
       },
     ];
 
-    return Scaffold(
-      backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.blue[900],
-        title: const Text(
-          'Contact Teachers',
-          style: TextStyle(color: Colors.white),
+    return WillPopScope(
+      onWillPop: () async {
+        if (isFromHomePage) {
+          // Show exit confirmation when coming from home page
+          final shouldPop = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Exit App?'),
+              content: const Text('Do you want to exit the app?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('No'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Yes'),
+                ),
+              ],
+            ),
+          );
+          return shouldPop ?? false;
+        } else if (previousScreen != null) {
+          // Navigate back to previous screen (parent dashboard)
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => previousScreen!),
+          );
+          return false; // Prevent default back behavior
+        }
+        return true; // Default back behavior
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey[100],
+        appBar: AppBar(
+          automaticallyImplyLeading: !isFromHomePage,
+          backgroundColor: Colors.blue[900],
+          title: const Text(
+            'Contact Teachers',
+            style: TextStyle(color: Colors.white),
+          ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () async {
-            if (showExitConfirmation) {
-              final shouldPop = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Discard changes?'),
-                  content: const Text(
-                      'Are you sure you want to go back? Any unsaved changes will be lost.'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
+        body: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: teachers.length,
+          itemBuilder: (context, index) {
+            final teacher = teachers[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16),
+                leading: CircleAvatar(
+                  backgroundColor: Colors.blue[100],
+                  radius: 30,
+                  child: Text(
+                    teacher['image']!,
+                    style: TextStyle(
+                      color: Colors.blue[900],
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
                     ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Discard'),
+                  ),
+                ),
+                title: Text(
+                  teacher['name']!,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 4),
+                    Text(teacher['subject']!),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _buildContactButton(
+                        icon: Icons.connect_without_contact,
+                        label: 'WhatsApp',
+                        backgroundColor: const Color(0xFF25D366),
+                        onPressed: () async {
+                          String phoneNumber = teacher['phone']!;
+                          if (phoneNumber.startsWith('+')) {
+                            phoneNumber = phoneNumber.substring(1);
+                          }
+                          final message =
+                              'Hello ${teacher['name']}, I would like to connect with you regarding ${teacher['subject']}.';
+                          final whatsappUrl =
+                              'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}';
+                          await launchUrlString(
+                            whatsappUrl,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
-              );
-
-              if (shouldPop != true) return;
-            }
-
-            if (context.mounted) {
-              if (previousScreen != null) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => previousScreen!),
-                );
-              } else {
-                Navigator.pop(context);
-              }
-            }
+              ),
+            );
           },
         ),
-      ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: teachers.length,
-        itemBuilder: (context, index) {
-          final teacher = teachers[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              contentPadding: const EdgeInsets.all(16),
-              leading: CircleAvatar(
-                backgroundColor: Colors.blue[100],
-                radius: 30,
-                child: Text(
-                  teacher['image']!,
-                  style: TextStyle(
-                    color: Colors.blue[900],
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                ),
-              ),
-              title: Text(
-                teacher['name']!,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  Text(teacher['subject']!),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment:
-                        Alignment.centerRight, // Move button to the right
-                    child: _buildContactButton(
-                      icon: Icons.connect_without_contact,
-                      label: 'WhatsApp',
-                      backgroundColor:
-                          Color(0xFF25D366), // WhatsApp green color
-                      onPressed: () async {
-                        String phoneNumber = teacher['phone']!;
-                        if (phoneNumber.startsWith('+')) {
-                          phoneNumber = phoneNumber.substring(1);
-                        }
-                        final message =
-                            'Hello ${teacher['name']}, I would like to connect with you regarding ${teacher['subject']}.';
-                        final whatsappUrl =
-                            'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}';
-                        await launchUrlString(whatsappUrl,
-                            mode: LaunchMode.externalApplication);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
       ),
     );
   }
