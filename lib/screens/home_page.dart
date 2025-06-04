@@ -33,7 +33,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late PageController _pageController;
   int _selectedIndex = 0;
 
-  final List<String> _labels = ['Home', 'Classes', 'Doubts', 'Profile'];
+  final List<String> _labels = ['Home', 'Classes', 'Contacts', 'Profile'];
 
   @override
   void initState() {

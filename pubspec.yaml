@@ -60,8 +60,12 @@ dependencies:
   firebase_storage: ^12.4.6
   open_filex: ^4.3.2
   syncfusion_flutter_pdfviewer: ^29.2.7
+<<<<<<< HEAD
   pdf: ^3.10.7
   share_plus: ^7.2.1
+=======
+  cached_network_image: ^3.4.1
+>>>>>>> a08e0b28f2497a8c78a16011003c37b182800da2
 
 dev_dependencies:
   flutter_test:
@@ -89,16 +93,20 @@ flutter:
     - assets/videos/park_theme.mp4
     - assets/images/logo.png
     - assets/images/avatar-girl-svgrepo-com.svg
+<<<<<<< HEAD
     - assets/videos/intro1.mp4
     - assets/videos/tr1.mp4
     - assets/videos/tr2.mp4
     - assets/videos/tr10.mp4
+=======
+>>>>>>> a08e0b28f2497a8c78a16011003c37b182800da2
     - assets/videos/3,4,5,6.mp4
     - assets/videos/22.mp4
     - assets/videos/27.mp4
     - assets/videos/28.mp4
     - assets/videos/29.mp4
     - assets/videos/intro2.mp4
+    - assets/videos/intro1.mp4
     - assets/videos/32.mp4
     - assets/videos/33.mp4
     - assets/videos/34.mp4
@@ -116,6 +124,10 @@ flutter:
     - assets/videos/17.mp4
     - assets/videos/18.mp4
     - assets/videos/19.mp4
+    - assets/Avatars/Boy avatar.gif
+    - assets/Avatars/Girl avatar.gif
+    - assets/Avatars/Female avatar.gif
+    - assets/Avatars/Male avatar.gif
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

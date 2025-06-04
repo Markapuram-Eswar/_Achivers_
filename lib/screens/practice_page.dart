@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'subject_practice_page.dart';
 
+void main() {
+  runApp(const MaterialApp(
+    home: PracticePage(),
+  ));
+}
+
 class PracticePage extends StatefulWidget {
   const PracticePage({super.key});
 
@@ -128,90 +134,6 @@ class PracticePageState extends State<PracticePage> {
             ),
             const SizedBox(height: 24),
 
-            // Recent practice section
-            const Text(
-              'Recent Practice',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 140,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _recentPractice.take(2).length,
-                itemBuilder: (context, index) {
-                  final item = _recentPractice[index];
-                  return Container(
-                    width: 200,
-                    margin: const EdgeInsets.only(right: 16),
-                    decoration: BoxDecoration(
-                      color: item['color'].withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: item['color'].withOpacity(0.3)),
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item['title'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            Text(
-                              item['subject'],
-                              style: TextStyle(
-                                color: item['color'],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              item['date'],
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: item['color'],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                item['score'],
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 24),
-
             // Practice by subject section
             const Text(
               'Practice by Subject',
@@ -222,70 +144,7 @@ class PracticePageState extends State<PracticePage> {
             ),
             const SizedBox(height: 16),
             ..._practiceItems.map((item) => _buildPracticeCard(item)),
-
             const SizedBox(height: 24),
-
-            // Quick practice section
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Colors.orange, Colors.deepOrange],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.flash_on, color: Colors.white, size: 24),
-                      SizedBox(width: 8),
-                      Text(
-                        'Quick Practice',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Random questions from all subjects',
-                    style: TextStyle(
-                      color: Colors.white70,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildQuickPracticeButton(
-                              '5 Questions', Icons.looks_5),
-                          const SizedBox(
-                              width:
-                                  20), // Adjust this width value to control the gap
-                          _buildQuickPracticeButton(
-                              '10 Questions', Icons.looks_one),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Center(
-                        child: _buildQuickPracticeButton(
-                            '15 Questions', Icons.filter_1),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -418,23 +277,6 @@ class PracticePageState extends State<PracticePage> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickPracticeButton(String text, IconData icon) {
-    return ElevatedButton.icon(
-      onPressed: () {
-        // Start quick practice
-      },
-      icon: Icon(icon, size: 16),
-      label: Text(text),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.deepOrange,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
         ),
       ),
     );
