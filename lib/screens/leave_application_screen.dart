@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../services/LeaveService.dart';
-import '../services/ProfileService.dart';
-import '../services/auth_service.dart';
 
 class LeaveApplicationScreen extends StatefulWidget {
   const LeaveApplicationScreen({super.key});
@@ -20,9 +17,6 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
   bool _isUrgent = false;
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
-  String _selectedChildRollNumber = '';
-  List<String> _childrenRollNumbers = [];
-  bool _isLoadingChildren = true;
 
   final List<String> _leaveTypes = [
     'Sick Leave',
@@ -30,46 +24,6 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
     'Personal Leave',
     'Other'
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadChildrenRollNumbers();
-  }
-
-  Future<void> _loadChildrenRollNumbers() async {
-    try {
-      final userId = await AuthService.getUserId();
-      if (userId == null || userId.isEmpty) {
-        throw 'Parent ID not found. Please login again.';
-      }
-      
-      // Fetch parent's children roll numbers
-      final children = await ProfileService().getParentChildren(userId);
-      if (children.isEmpty) {
-        throw 'No children found in your profile. Please add your children first.';
-      }
-
-      setState(() {
-        _childrenRollNumbers = children.map((child) => child['rollNumber'].toString()).toList();
-        if (_childrenRollNumbers.isNotEmpty) {
-          _selectedChildRollNumber = _childrenRollNumbers[0];
-        }
-        _isLoadingChildren = false;
-      });
-    } catch (e) {
-      setState(() => _isLoadingChildren = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    }
-  }
 
   Future<void> _selectDate(BuildContext context, bool isStartDate) async {
     final DateTime? picked = await showDatePicker(
@@ -111,65 +65,47 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
 
   void _submitApplication() async {
     if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isSubmitting = true);
-    try {
-      // Get current user ID and verify parent
-      final userId = await AuthService.getUserId();
-      final userType = await AuthService.getUserType();
-      if (userId == null || userType != 'parent') {
-        throw 'Only parents can apply for leave. Please login as a parent.';
-      }
 
-      // Submit leave
-      await LeaveService().applyLeaveForChild(
-        childRollNumber: _selectedChildRollNumber,
-        leaveType: _selectedLeaveType,
-        reason: _reasonController.text.trim(),
-        fromDate: _startDate,
-        toDate: _endDate,
-      );
+    // Simulate API call
+    await Future.delayed(const Duration(seconds: 2));
 
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 28),
-              SizedBox(width: 10),
-              Text('Success'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                  'Your leave application has been submitted successfully.'),
-              const SizedBox(height: 15),
-              Text('Reference ID: #${DateTime.now().millisecondsSinceEpoch}'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-              child: const Text('OK'),
-            ),
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 28),
+            SizedBox(width: 10),
+            Text('Success'),
           ],
         ),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Your leave application has been submitted successfully.'),
+            const SizedBox(height: 15),
+            Text('Reference ID: #${DateTime.now().millisecondsSinceEpoch}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context);
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+
     setState(() => _isSubmitting = false);
   }
 
@@ -233,66 +169,49 @@ class _LeaveApplicationScreenState extends State<LeaveApplicationScreen> {
   }
 
   Widget _buildStudentInfo() {
-    if (_isLoadingChildren) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_childrenRollNumbers.isEmpty) {
-      return Card(
-        elevation: 0,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Center(
-            child: Text(
-              'No children found. Please add your children to your profile.',
-              style: TextStyle(color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      );
-    }
-
     return Card(
       elevation: 0,
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            const Text(
-              'Select Child',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+            CircleAvatar(
+              radius: 30,
+              backgroundColor: Colors.indigo[100],
+              child: Text(
+                'RK',
+                style: TextStyle(
+                  color: Colors.indigo[700],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
             ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: _selectedChildRollNumber,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                filled: true,
-                fillColor: Colors.grey[50],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Rahul Kumar',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Class: 8-A • Roll No: 15',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  Text(
+                    'Student ID: STU2023001',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ],
               ),
-              items: _childrenRollNumbers.map((String rollNumber) {
-                return DropdownMenuItem<String>(
-                  value: rollNumber,
-                  child: Text('Roll Number: $rollNumber'),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  setState(() => _selectedChildRollNumber = newValue);
-                }
-              },
             ),
           ],
         ),
