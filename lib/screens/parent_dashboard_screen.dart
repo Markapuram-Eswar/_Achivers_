@@ -4,6 +4,9 @@ import 'contact_teacher_screen.dart';
 import 'parent_profile_page.dart';
 import 'progress_page.dart';
 import 'fee_payments_screen.dart';
+import '../services/parent_service.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -13,10 +16,40 @@ class ParentDashboardScreen extends StatefulWidget {
 }
 
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
+  final ParentService _parentService = ParentService();
+  Map<String, dynamic>? _parentData;
+  bool _isLoading = true;
   @override
   void initState() {
     super.initState();
+    _loadParentData();
+    
     /* Backend TODO: Fetch parent dashboard data from backend (API call, database read) */
+  }
+
+Future<void> _loadParentData() async {
+    try {
+      final parentData = await _parentService.getParentProfile();
+      print("parentData: ${parentData['name']}");
+      if (mounted) {
+        setState(() {
+          _parentData = parentData;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading profile: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<bool> _onWillPop() async {
@@ -113,9 +146,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Eswar Kumar',
-                  style: TextStyle(
+                Text(
+                  "${_parentData?['name'] ?? ''}",
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -123,7 +156,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  'CSE-B •21BF1A05A9',
+                  "${_parentData?['phone'] ?? ''}",
                   style: TextStyle(
                     color: Colors.blue[50],
                     fontSize: 16,

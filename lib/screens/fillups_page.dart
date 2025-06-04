@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/fillups_post_service.dart';
+import '../services/auth_service.dart';
 
 class FillupsPage extends StatefulWidget {
   final Map<String, dynamic> subjectData;
@@ -19,38 +23,7 @@ class FillupsPage extends StatefulWidget {
 class FillupsPageState extends State<FillupsPage>
     with SingleTickerProviderStateMixin {
   int _currentQuestionIndex = 0;
-  final List<Map<String, dynamic>> _questions = [
-    {
-      'question': 'What is the capital of France?',
-      'answer': 'Paris',
-      'hint': 'Think of the Eiffel Tower',
-      'jumbledLetters': ['P', 'A', 'R', 'I', 'S'],
-    },
-    {
-      'question': 'Which planet is known as the Red Planet?',
-      'answer': 'Mars',
-      'hint': 'Named after the Roman god of war',
-      'jumbledLetters': ['M', 'A', 'R', 'S'],
-    },
-    {
-      'question': 'What is the largest ocean on Earth?',
-      'answer': 'Pacific',
-      'hint': 'Means peaceful in Latin',
-      'jumbledLetters': ['P', 'A', 'C', 'I', 'F', 'I', 'C'],
-    },
-    {
-      'question': 'Which element has the symbol Au?',
-      'answer': 'Gold',
-      'hint': 'A precious metal',
-      'jumbledLetters': ['G', 'O', 'L', 'D'],
-    },
-    {
-      'question': 'What is the hardest natural substance?',
-      'answer': 'Diamond',
-      'hint': 'Made of pure carbon',
-      'jumbledLetters': ['D', 'I', 'A', 'M', 'O', 'N', 'D'],
-    },
-  ];
+  List<Map<String, dynamic>> _questions = [];
 
   final TextEditingController _answerController = TextEditingController();
   final stt.SpeechToText _speech = stt.SpeechToText();
@@ -65,14 +38,81 @@ class FillupsPageState extends State<FillupsPage>
   bool _isCorrect = false;
   late AnimationController _feedbackAnimationController;
   late Animation<double> _feedbackAnimation;
+  
+  // Firebase and progress tracking
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  int _correctAnswers = 0;
+  int _totalQuestions = 0;
+  bool _isSubmittingProgress = false;
 
   @override
   void initState() {
     super.initState();
+    _initializeQuestions();
+    _totalQuestions = _questions.length;
     _startTimer();
     _initializeSpeech();
     _shuffleLetters();
     _initializeAnimations();
+  }
+
+  void _initializeQuestions() {
+    // Get questions from widget.topicData
+    final blanksData = widget.topicData['data']?['blanks'];
+    if (blanksData != null && blanksData is List) {
+      _questions = blanksData.map<Map<String, dynamic>>((question) {
+        // Convert each question to the required format
+        final questionMap = Map<String, dynamic>.from(question);
+        
+        // Create jumbled letters from the answer
+        String answer = questionMap['answer']?.toString() ?? '';
+        List<String> jumbledLetters = answer.toUpperCase().split('');
+        
+        return {
+          'question': questionMap['question'] ?? '',
+          'answer': answer,
+          'hint': questionMap['hint'] ?? 'Think carefully about the answer',
+          'jumbledLetters': jumbledLetters,
+        };
+      }).toList();
+    }
+    
+    // Fallback to default questions if no data found
+    if (_questions.isEmpty) {
+      _questions = [
+        {
+          'question': 'What is the capital of France?',
+          'answer': 'Paris',
+          'hint': 'Think of the Eiffel Tower',
+          'jumbledLetters': ['P', 'A', 'R', 'I', 'S'],
+        },
+        {
+          'question': 'Which planet is known as the Red Planet?',
+          'answer': 'Mars',
+          'hint': 'Named after the Roman god of war',
+          'jumbledLetters': ['M', 'A', 'R', 'S'],
+        },
+        {
+          'question': 'What is the largest ocean on Earth?',
+          'answer': 'Pacific',
+          'hint': 'Means peaceful in Latin',
+          'jumbledLetters': ['P', 'A', 'C', 'I', 'F', 'I', 'C'],
+        },
+        {
+          'question': 'Which element has the symbol Au?',
+          'answer': 'Gold',
+          'hint': 'A precious metal',
+          'jumbledLetters': ['G', 'O', 'L', 'D'],
+        },
+        {
+          'question': 'What is the hardest natural substance?',
+          'answer': 'Diamond',
+          'hint': 'Made of pure carbon',
+          'jumbledLetters': ['D', 'I', 'A', 'M', 'O', 'N', 'D'],
+        },
+      ];
+    }
   }
 
   void _initializeAnimations() {
@@ -105,10 +145,12 @@ class FillupsPageState extends State<FillupsPage>
   }
 
   void _shuffleLetters() {
-    _availableLetters =
-        List.from(_questions[_currentQuestionIndex]['jumbledLetters']);
-    _availableLetters.shuffle();
-    _selectedLetters = [];
+    if (_currentQuestionIndex < _questions.length) {
+      _availableLetters =
+          List.from(_questions[_currentQuestionIndex]['jumbledLetters']);
+      _availableLetters.shuffle();
+      _selectedLetters = [];
+    }
   }
 
   void _selectLetter(String letter) {
@@ -148,6 +190,8 @@ class FillupsPageState extends State<FillupsPage>
   }
 
   void _checkAnswer() {
+    if (_currentQuestionIndex >= _questions.length) return;
+    
     final correctAnswer =
         _questions[_currentQuestionIndex]['answer'].toLowerCase();
     final userAnswer = _selectedAnswer.toLowerCase().trim();
@@ -158,6 +202,7 @@ class FillupsPageState extends State<FillupsPage>
 
       if (_isCorrect) {
         _score += 20;
+        _correctAnswers++;
         /* Backend TODO: Save correct answer to backend (API call, database write) */
       } else {
         _score = _score > 10 ? _score - 10 : 0;
@@ -173,7 +218,10 @@ class FillupsPageState extends State<FillupsPage>
           });
           _feedbackAnimationController.reset();
 
-          if (_isCorrect && _currentQuestionIndex < _questions.length - 1) {
+          // Check if this was the last question
+          if (_currentQuestionIndex == _questions.length - 1) {
+            _submitProgressToFirebase();
+          } else if (_isCorrect && _currentQuestionIndex < _questions.length - 1) {
             _currentQuestionIndex++;
             _selectedAnswer = '';
             _answerController.clear();
@@ -191,19 +239,188 @@ class FillupsPageState extends State<FillupsPage>
   }
 
   void _showHint() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_questions[_currentQuestionIndex]['hint']),
-        backgroundColor: Colors.orange,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
+    if (_currentQuestionIndex < _questions.length) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_questions[_currentQuestionIndex]['hint']),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
+  }
+
+  Future<void> _submitProgressToFirebase() async {
+    setState(() {
+      _isSubmittingProgress = true;
+    });
+
+    try {
+      final userId = await AuthService.getUserId();
+      final userType = await AuthService.getUserType();
+
+      if (userId == null || userType != 'student') {
+        _showErrorDialog('User not authenticated. Please log in again.');
+        return;
+      }
+
+      final subjectId = widget.subjectData['id'] ?? 'unknown_subject';
+      final topicId = widget.topicData['id'] ?? 'unknown_topic';
+      final subjectName = widget.subjectData['name'] ?? 'Unknown Subject';
+      final topicName = widget.topicData['name'] ?? 'Unknown Topic';
+      final percentage = _totalQuestions > 0 
+          ? ((_correctAnswers / _totalQuestions) * 100).round() 
+          : 0;
+      final timeSpent = 900 - _timeRemaining;
+
+      final fillupsService = FillupsPostService();
+      await fillupsService.submitFillupsResult(
+        userId: userId,
+        subjectId: subjectId,
+        topicId: topicId,
+        subjectName: subjectName,
+        topicName: topicName,
+        score: _score,
+        correctAnswers: _correctAnswers,
+        totalQuestions: _totalQuestions,
+        percentage: percentage,
+        timeSpent: timeSpent,
+      );
+
+      _showCompletionDialog();
+    } catch (e) {
+      print('Error submitting progress: $e');
+      _showErrorDialog('Failed to save progress. Please try again.');
+    } finally {
+      setState(() {
+        _isSubmittingProgress = false;
+      });
+    }
+  }
+
+  void _showCompletionDialog() {
+    final percentage = _totalQuestions > 0 
+        ? ((_correctAnswers / _totalQuestions) * 100).round() 
+        : 0;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Row(
+            children: [
+              Icon(Icons.celebration, color: Colors.orange, size: 30),
+              SizedBox(width: 10),
+              Text('Quiz Completed!'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Great job! Here are your results:'),
+              const SizedBox(height: 15),
+              _buildResultRow('Score', '$_score points'),
+              _buildResultRow('Correct Answers', '$_correctAnswers out of $_totalQuestions'),
+              _buildResultRow('Percentage', '$percentage%'),
+              _buildResultRow('Time Spent', _formatTime(900 - _timeRemaining)),
+              const SizedBox(height: 15),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: percentage >= 70 ? Colors.green[50] : Colors.orange[50],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      percentage >= 70 ? Icons.star : Icons.trending_up,
+                      color: percentage >= 70 ? Colors.green : Colors.orange,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        percentage >= 70 
+                            ? 'Excellent work! Keep it up!' 
+                            : 'Good effort! Keep practicing to improve.',
+                        style: TextStyle(
+                          color: percentage >= 70 ? Colors.green[700] : Colors.orange[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                Navigator.of(context).pop(); // Go back to previous screen
+              },
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildResultRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey[600])),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
       ),
+    );
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 30),
+              SizedBox(width: 10),
+              Text('Error'),
+            ],
+          ),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_questions.isEmpty) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: SafeArea(
@@ -261,6 +478,26 @@ class FillupsPageState extends State<FillupsPage>
                         ],
                       ),
                     ),
+                  ),
+                ),
+              ),
+            if (_isSubmittingProgress)
+              Container(
+                color: Colors.black54,
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: Colors.white),
+                      SizedBox(height: 16),
+                      Text(
+                        'Saving your progress...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -349,7 +586,7 @@ class FillupsPageState extends State<FillupsPage>
           ),
           const Spacer(),
           Row(
-            children: List.generate(5, (index) {
+            children: List.generate(_questions.length, (index) {
               return Container(
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 width: 12,
@@ -369,6 +606,30 @@ class FillupsPageState extends State<FillupsPage>
   }
 
   Widget _buildQuestionCard() {
+    if (_currentQuestionIndex >= _questions.length) {
+      return Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.1),
+              spreadRadius: 1,
+              blurRadius: 10,
+            ),
+          ],
+        ),
+        child: const Center(
+          child: Text(
+            'No more questions available',
+            style: TextStyle(fontSize: 18),
+          ),
+        ),
+      );
+    }
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
@@ -387,7 +648,7 @@ class FillupsPageState extends State<FillupsPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Question ${_currentQuestionIndex + 1} of 5',
+            'Question ${_currentQuestionIndex + 1} of ${_questions.length}',
             style: TextStyle(color: Colors.grey[600]),
           ),
           const SizedBox(height: 12),

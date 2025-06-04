@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import '../services/text_book_service.dart';
+import '../services/ProfileService.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
-void main() => runApp(
-      MaterialApp(
-        home: TextbookPage(
-          subjectId: 'science101',
-          topicId: 'biology-basics',
-        ),
-      ),
-    );
+
+
+// void main() => runApp(
+//       MaterialApp(
+//         home: TextbookPage(
+//           subjectId: 'science101',
+//           topicId: 'biology-basics',r
+//         ),
+//       ),
+//     );
 
 class TextbookPage extends StatefulWidget {
-  final String subjectId;
-  final String topicId;
+  final Map<String, dynamic> subjectData;
+  final Map<String, dynamic> topicData;
 
   const TextbookPage({
     super.key,
-    required this.subjectId,
-    required this.topicId,
+    required this.subjectData,
+    required this.topicData,
   });
 
   @override
@@ -25,18 +30,84 @@ class TextbookPage extends StatefulWidget {
 }
 
 class _TextbookPageState extends State<TextbookPage> {
+  final TextBookService _textBookService = TextBookService();
   late Future<Map<String, dynamic>> _textbookData;
+  Map<String, dynamic>? studentData;
   final FlutterTts _flutterTts = FlutterTts();
   List<dynamic> _voices = [];
   String? _selectedVoice;
   int? _currentlySpeakingIndex;
+  String? errorMessage;
+  bool isLoading = true;
+
 
   @override
   void initState() {
     super.initState();
-    _textbookData = fetchTextbookData(widget.subjectId, widget.topicId);
+    print('Textbook Page ${widget.subjectData}');
+    print('Textbook Page ${widget.topicData}');
+    _loadData();
     _initTts();
   }
+
+  Future<void> _loadData() async {
+    try {
+      // Fetch student profile first
+      final profileData = await ProfileService().getStudentProfile();
+      setState(() => studentData = profileData);
+      
+      // Then fetch practice items using school/class from profile
+      await _fetchTextbookData();
+    } catch (e) {
+      Fluttertoast.showToast(msg: 'Failed to load data: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _fetchTextbookData() async {
+    // For now, use hardcoded school and grade, or get from widget.subjectData if available
+    final school = studentData?['school']?.toString() ?? '';
+    final grade = studentData?['class']?.toString() ?? '';
+    final subject = widget.subjectData['title']?.toString() ?? '';
+    final topic = widget.topicData['name']?.toString() ?? '';
+
+    print('Student school: $school, class: $grade');
+
+    try {
+      final content = await _textBookService.getTextbookContent(
+        school: school,
+        grade: grade,
+        subject: subject,
+        topic: topic,
+      );
+
+      print('Content: $content');
+
+      if (content == null || content.isEmpty) {
+        setState(() => errorMessage = 'No content found for your class');
+        return;
+      }
+
+      // Wrap the Firestore content in the structure expected by the UI
+      setState(() => _textbookData = Future.value({
+        "subjectData": {
+          "id": subject,
+          "name": subject,
+          "color": widget.subjectData["color"] ?? const Color(0xFF2196F3),
+        },
+        "topicData": {
+          "id": topic,
+          "title": topic,
+          "icon": widget.topicData["icon"] ?? "",
+          "content": content["content"] ?? [],
+        }
+      }));
+    } catch (e) {
+      setState(() => errorMessage = 'Failed to fetch textbook data: $e');
+    }
+  }
+
 
   Future<void> _initTts() async {
     _voices = await _flutterTts.getVoices;
@@ -134,9 +205,15 @@ class _TextbookPageState extends State<TextbookPage> {
           return Scaffold(
               body: Center(child: Text('Error: ${snapshot.error}')));
         } else {
-          final subjectData = snapshot.data!['subjectData'];
-          final topicData = snapshot.data!['topicData'];
-          final List<dynamic> content = topicData['content'];
+          final data = snapshot.data;
+          if (data == null || data['subjectData'] == null || data['topicData'] == null) {
+            return const Scaffold(
+              body: Center(child: Text('No textbook data found.')),
+            );
+          }
+          final subjectData = data['subjectData'] ?? {};
+          final topicData = data['topicData'] ?? {};
+          final List<dynamic> content = topicData['content'] ?? [];
 
           return Scaffold(
             appBar: AppBar(

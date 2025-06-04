@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'subject_practice_page.dart';
+import '../services/practice_zone_service.dart';
+import '../services/ProfileService.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import '../services/text_book_service.dart';
 
 class PracticePage extends StatefulWidget {
   const PracticePage({super.key});
@@ -9,63 +13,14 @@ class PracticePage extends StatefulWidget {
 }
 
 class PracticePageState extends State<PracticePage> {
-  final List<Map<String, dynamic>> _practiceItems = [
-    {
-      'title': 'Mathematics',
-      'subtitle': 'Algebra, Geometry, Calculus',
-      'icon': 'https://img.icons8.com/isometric/50/hygrometer.png',
-      'color': Colors.blue,
-      'progress': 0.75,
-      'questions': 120,
-      'completed': 90,
-    },
-    {
-      'title': 'Science',
-      'subtitle': 'Physics, Chemistry, Biology',
-      'icon': 'https://img.icons8.com/isometric/50/microscope.png',
-      'color': Colors.green,
-      'progress': 0.60,
-      'questions': 150,
-      'completed': 90,
-    },
-    {
-      'title': 'English',
-      'subtitle': 'Grammar, Vocabulary, Literature',
-      'icon': 'https://img.icons8.com/isometric/50/book-shelf.png',
-      'color': Colors.purple,
-      'progress': 0.85,
-      'questions': 100,
-      'completed': 85,
-    },
-    {
-      'title': 'Social Studies',
-      'subtitle': 'History, Geography, Civics',
-      'icon': 'https://img.icons8.com/isometric/50/world-map.png',
-      'color': Colors.orange,
-      'progress': 0.45,
-      'questions': 80,
-      'completed': 36,
-    },
-    {
-      'title': 'Telugu',
-      'subtitle': 'Grammar, Literature, Comprehension',
-      'icon': 'https://img.icons8.com/isometric/50/literature.png',
-      'color': Colors.pink,
-      'progress': 0.55,
-      'questions': 90,
-      'completed': 50,
-    },
-    {
-      'title': 'Hindi',
-      'subtitle': 'Grammar, Literature, Vocabulary',
-      'icon': 'https://img.icons8.com/isometric/50/book-reading.png',
-      'color': Colors.amber,
-      'progress': 0.40,
-      'questions': 85,
-      'completed': 34,
-    },
-  ];
+  final FirebaseService _practiceZoneService = FirebaseService();
+  final ProfileService _profileService = ProfileService();
 
+  Map<String, dynamic>? studentData;
+  bool isLoading = true;
+  String? errorMessage = '';
+
+  List<Map<String, dynamic>> _practiceItems = [];
   final List<Map<String, dynamic>> _recentPractice = [
     {
       'title': 'Algebra Quiz',
@@ -93,15 +48,136 @@ class PracticePageState extends State<PracticePage> {
   @override
   void initState() {
     super.initState();
-    /* Backend TODO: Fetch practice data from backend (API call, database read) */
+    _loadData();
   }
+
+  Future<void> _loadData() async {
+    try {
+      // Fetch student profile first
+      final profileData = await ProfileService().getStudentProfile();
+      setState(() => studentData = profileData);
+      
+      // Then fetch practice items using school/class from profile
+      await _fetchPracticeItems();
+    } catch (e) {
+      Fluttertoast.showToast(msg: 'Failed to load data: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+Future<void> _fetchPracticeItems() async {
+  if (studentData == null) {
+    setState(() => errorMessage = 'Student profile not loaded');
+    return;
+  }
+
+  final school = studentData!['school'].toString();
+  final grade = studentData!['class'].toString();
+
+  // Print for debugging
+  print('Student school: $school, class: $grade');
+  
+  if (school == null || grade == null) {
+    setState(() => errorMessage = 'School or class missing in profile');
+    return;
+  }
+
+  try {
+    final subjects = await _practiceZoneService.fetchSubjects(school, grade);
+
+    print('Subjects: ${subjects['Mathematics']}');
+    
+    if (subjects == null || subjects.isEmpty) {
+      setState(() => errorMessage = 'No subjects found for your class');
+      return;
+    }
+
+    print('Fetched ${subjects.length} subjects: ${subjects.keys.join(', ')}');
+    
+    final List<Map<String, dynamic>> items = [];
+
+    
+    subjects.forEach((subjectName, subjectData) {
+      // Subject data is already a Map<String, dynamic>
+      List<Map<String, dynamic>> topics = [];
+  
+  if (subjectData is Map) {
+    // Iterate through each topic in the subject
+    subjectData.forEach((topicName, topicContent) {
+      // Add the topic as a map with its name and content
+      topics.add({
+        'name': topicName,
+        'data': topicContent,  // Stores the topic content (blanks, mcq, etc.)
+      });
+    });
+  }
+  
+  // If no topics found, use default text
+      print('Subject data ash: ${subjectData}');
+      items.add({
+        'title': subjectName,
+        'subtitle': topics ?? 'Practice questions',
+        'icon': subjectData['icon'] ?? 'https://img.icons8.com/isometric/50/book-shelf.png',
+        'color': _getSubjectColor(subjectName),
+        'progress': _parseDouble(subjectData['progress']),
+        'questions': _parseInt(subjectData['questions']),
+        'completed': _parseInt(subjectData['completed']),
+      });
+    });
+
+    setState(() {
+      _practiceItems = items;
+      errorMessage = null;
+    });
+    
+  } catch (e) {
+    setState(() => errorMessage = 'Error loading subjects: ${e.toString()}');
+  }
+}
+
+// Safe parsing helpers
+double _parseDouble(dynamic value) {
+  if (value == null) return 0.0;
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  if (value is String) return double.tryParse(value) ?? 0.0;
+  return 0.0;
+}
+
+int _parseInt(dynamic value) {
+  if (value == null) return 0;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? 0;
+  return 0;
+}
+
+// Consistent color generator
+Color _getSubjectColor(String subject) {
+  final colors = [
+    Colors.blue,
+    Colors.green,
+    Colors.purple,
+    Colors.orange,
+    Colors.red,
+    Colors.teal,
+  ];
+  final index = subject.hashCode.abs() % colors.length;
+  return colors[index];
+}
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text('Practice Zone', style: TextStyle(color: Colors.white)),
+        title: const Text('Practice Zone', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.orange,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -213,17 +289,18 @@ class PracticePageState extends State<PracticePage> {
             const SizedBox(height: 24),
 
             // Practice by subject section
-            const Text(
-              'Practice by Subject',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+            if (_practiceItems.isNotEmpty) ...[
+              const Text(
+                'Practice by Subject',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            ..._practiceItems.map((item) => _buildPracticeCard(item)),
-
-            const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              ..._practiceItems.map((item) => _buildPracticeCard(item)),
+              const SizedBox(height: 24),
+            ],
 
             // Quick practice section
             Container(
@@ -269,9 +346,7 @@ class PracticePageState extends State<PracticePage> {
                         children: [
                           _buildQuickPracticeButton(
                               '5 Questions', Icons.looks_5),
-                          const SizedBox(
-                              width:
-                                  20), // Adjust this width value to control the gap
+                          const SizedBox(width: 20),
                           _buildQuickPracticeButton(
                               '10 Questions', Icons.looks_one),
                         ],
@@ -294,13 +369,13 @@ class PracticePageState extends State<PracticePage> {
 
   Widget _buildPracticeCard(Map<String, dynamic> item) {
     return Container(
-      // Remove margin-bottom since we're scrolling horizontally now
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
+            color: Colors.grey.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 6,
             offset: const Offset(0, 3),
@@ -313,13 +388,10 @@ class PracticePageState extends State<PracticePage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {
-            // Navigate to subject practice
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => SubjectPracticePage(
-                  subjectData: item,
-                ),
+                builder: (context) => SubjectPracticePage(subjectData: item),
               ),
             );
           },
@@ -340,6 +412,8 @@ class PracticePageState extends State<PracticePage> {
                         item['icon'],
                         width: 30,
                         height: 30,
+                        errorBuilder: (context, error, stackTrace) => 
+                            const Icon(Icons.menu_book),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -348,14 +422,14 @@ class PracticePageState extends State<PracticePage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            item['title'],
+                            item['title'],  // Fixed: use item['title']
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
-                            item['subtitle'],
+                            item['subtitle'].map((topic) => topic['name']).join(', '),
                             style: const TextStyle(
                               color: Colors.grey,
                               fontSize: 14,
@@ -381,7 +455,7 @@ class PracticePageState extends State<PracticePage> {
                           LinearProgressIndicator(
                             value: item['progress'],
                             backgroundColor: Colors.grey[200],
-                            valueColor:
+                            valueColor: 
                                 AlwaysStoppedAnimation<Color>(item['color']),
                             minHeight: 8,
                             borderRadius: BorderRadius.circular(4),
@@ -400,7 +474,13 @@ class PracticePageState extends State<PracticePage> {
                     const SizedBox(width: 16),
                     ElevatedButton(
                       onPressed: () {
-                        // Start practice
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => 
+                                SubjectPracticePage(subjectData: item),
+                          ),
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: item['color'],
@@ -425,9 +505,7 @@ class PracticePageState extends State<PracticePage> {
 
   Widget _buildQuickPracticeButton(String text, IconData icon) {
     return ElevatedButton.icon(
-      onPressed: () {
-        // Start quick practice
-      },
+      onPressed: () {},
       icon: Icon(icon, size: 16),
       label: Text(text),
       style: ElevatedButton.styleFrom(

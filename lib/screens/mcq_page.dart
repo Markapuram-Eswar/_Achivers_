@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/mcq_scorePost_service.dart';
+import '../services/auth_service.dart';
 
 class McqPage extends StatefulWidget {
   final Map<String, dynamic> subjectData;
@@ -21,19 +25,39 @@ class McqPageState extends State<McqPage> {
   bool _hasSubmitted = false;
   bool _showReview = false;
   int _score = 0;
+  late DateTime _quizStartTime;
+  final QuizService _quizService = QuizService();
+  bool _isSavingResult = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeQuestions();
+    _quizStartTime = DateTime.now();
+    
+    final mcqRaw = widget.topicData['data']?['mcq'];
+    if (mcqRaw is List) {
+      _questions = mcqRaw
+          .where((e) => e is Map)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    } else {
+      _questions = [];
+    }
+    
+    if (_questions.isEmpty) {
+      _initializeQuestions();
+    } else {
+      _selectedAnswers = List.filled(_questions.length, null);
+    }
+    
+    print('Topic data: $mcqRaw');
   }
 
   void _initializeQuestions() {
-    // Sample questions - in a real app, this would come from a database
     _questions = [
       {
         'question':
-            'Which of the following best describes ${widget.topicData['title']}?',
+            'Which of the following best describes ${widget.topicData['title'] ?? widget.topicData['name'] ?? 'this topic'}?',
         'options': [
           'The study of numbers and their operations',
           'The study of matter and energy',
@@ -42,11 +66,11 @@ class McqPageState extends State<McqPage> {
         ],
         'correctAnswer': 0,
         'explanation':
-            'This is the fundamental definition of ${widget.topicData['title']} in ${widget.subjectData['title']}.'
+            'This is the fundamental definition of ${widget.topicData['title'] ?? widget.topicData['name'] ?? 'this topic'} in ${widget.subjectData['title'] ?? 'this subject'}.'
       },
       {
         'question':
-            'Who is considered the father of modern ${widget.topicData['title']}?',
+            'Who is considered the father of modern ${widget.topicData['title'] ?? widget.topicData['name'] ?? 'this topic'}?',
         'options': [
           'Albert Einstein',
           'Isaac Newton',
@@ -55,11 +79,11 @@ class McqPageState extends State<McqPage> {
         ],
         'correctAnswer': 1,
         'explanation':
-            'Isaac Newton made significant contributions to the field of ${widget.topicData['title']} and is often considered its founding father.'
+            'Isaac Newton made significant contributions to the field of ${widget.topicData['title'] ?? widget.topicData['name'] ?? 'this topic'} and is often considered its founding father.'
       },
       {
         'question':
-            'Which principle is NOT associated with ${widget.topicData['title']}?',
+            'Which principle is NOT associated with ${widget.topicData['title'] ?? widget.topicData['name'] ?? 'this topic'}?',
         'options': [
           'Conservation of energy',
           'Law of gravity',
@@ -68,11 +92,11 @@ class McqPageState extends State<McqPage> {
         ],
         'correctAnswer': 3,
         'explanation':
-            'The law of diminishing returns is an economic principle, not related to ${widget.topicData['title']}.'
+            'The law of diminishing returns is an economic principle, not related to ${widget.topicData['title'] ?? widget.topicData['name'] ?? 'this topic'}.'
       },
       {
         'question':
-            'What is the primary application of ${widget.topicData['title']} in modern technology?',
+            'What is the primary application of ${widget.topicData['title'] ?? widget.topicData['name'] ?? 'this topic'} in modern technology?',
         'options': [
           'Social media algorithms',
           'Renewable energy systems',
@@ -81,19 +105,18 @@ class McqPageState extends State<McqPage> {
         ],
         'correctAnswer': 3,
         'explanation':
-            '${widget.topicData['title']} has applications in various fields including all the options mentioned.'
+            '${widget.topicData['title'] ?? widget.topicData['name'] ?? 'This topic'} has applications in various fields including all the options mentioned.'
       },
       {
         'question':
-            'Which formula is most closely associated with ${widget.topicData['title']}?',
+            'Which formula is most closely associated with ${widget.topicData['title'] ?? widget.topicData['name'] ?? 'this topic'}?',
         'options': ['E = mc²', 'F = ma', 'a² + b² = c²', 'PV = nRT'],
         'correctAnswer': 1,
         'explanation':
-            'F = ma (Force equals mass times acceleration) is a fundamental formula in ${widget.topicData['title']}.'
+            'F = ma (Force equals mass times acceleration) is a fundamental formula in ${widget.topicData['title'] ?? widget.topicData['name'] ?? 'this topic'}.'
       },
     ];
 
-    // Initialize selected answers list
     _selectedAnswers = List.filled(_questions.length, null);
   }
 
@@ -101,7 +124,7 @@ class McqPageState extends State<McqPage> {
     return !_selectedAnswers.any((answer) => answer == null);
   }
 
-  void _submitQuiz() {
+  void _submitQuiz() async {
     if (!_allQuestionsAnswered) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -114,13 +137,93 @@ class McqPageState extends State<McqPage> {
       _hasSubmitted = true;
       _showReview = false;
       _score = 0;
+      _isSavingResult = true;
 
       for (int i = 0; i < _questions.length; i++) {
-        if (_selectedAnswers[i] == _questions[i]['correctAnswer']) {
+        final correctAnswer = _questions[i]['correctAnswer'] as int? ?? 0;
+        if (_selectedAnswers[i] == correctAnswer) {
           _score++;
         }
       }
     });
+
+    await _saveQuizResult();
+  }
+
+  Future<void> _saveQuizResult() async {
+    try {
+      final userId = await AuthService.getUserId();
+      final userType = await AuthService.getUserType();
+      if (userId == null || userType != 'student') {
+        throw Exception('User not logged in');
+      }
+
+      final timeTaken = DateTime.now().difference(_quizStartTime);
+
+      final List<Map<String, dynamic>> questionResults = [];
+      for (int i = 0; i < _questions.length; i++) {
+        final question = _questions[i];
+        final correctAnswer = question['correctAnswer'] as int? ?? 0;
+        final selectedAnswer = _selectedAnswers[i];
+        final isCorrect = selectedAnswer == correctAnswer;
+
+        questionResults.add({
+          'questionIndex': i,
+          'question': question['question']?.toString() ?? '',
+          'options': (question['options'] as List<dynamic>?)
+              ?.map((option) => option?.toString() ?? '')
+              .toList() ?? [],
+          'correctAnswer': correctAnswer,
+          'selectedAnswer': selectedAnswer,
+          'isCorrect': isCorrect,
+          'explanation': question['explanation']?.toString() ?? '',
+        });
+      }
+
+      final success = await _quizService.storeQuizResult(
+        studentId: userId,
+        subjectId: widget.subjectData['id']?.toString() ?? '',
+        subjectName: widget.subjectData['title']?.toString() ?? 'Unknown Subject',
+        topicId: widget.topicData['id']?.toString() ?? '',
+        topicName: widget.topicData['title']?.toString() ?? widget.topicData['name']?.toString() ?? 'Unknown Topic',
+        score: _score,
+        totalQuestions: _questions.length,
+        questionResults: questionResults,
+        timeTaken: timeTaken,
+      );
+
+      setState(() {
+        _isSavingResult = false;
+      });
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Quiz result saved successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save quiz result. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isSavingResult = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error saving quiz result: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      print('Error saving quiz result: $e');
+    }
   }
 
   void _checkAnswers() {
@@ -130,13 +233,10 @@ class McqPageState extends State<McqPage> {
   }
 
   void _downloadReport() async {
-    // In a real app, this would generate and download a PDF report
-    // For now, we'll just show a snackbar
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Downloading report...')),
     );
 
-    // Simulate download delay
     await Future.delayed(const Duration(seconds: 1));
 
     if (mounted) {
@@ -167,7 +267,7 @@ class McqPageState extends State<McqPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '${widget.topicData['title']} MCQs',
+          '${widget.topicData['name']?.toString() ?? widget.topicData['title']?.toString() ?? 'MCQ'} MCQs',
           style: const TextStyle(color: Colors.white),
         ),
         backgroundColor: widget.subjectData['color'],
@@ -175,7 +275,6 @@ class McqPageState extends State<McqPage> {
       ),
       body: Column(
         children: [
-          // Progress indicator
           LinearProgressIndicator(
             value: (_currentQuestionIndex + 1) / _questions.length,
             backgroundColor: Colors.grey[200],
@@ -207,8 +306,6 @@ class McqPageState extends State<McqPage> {
               ],
             ),
           ),
-
-          // Question content or review
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -216,15 +313,13 @@ class McqPageState extends State<McqPage> {
                   _showReview ? _buildReviewScreen() : _buildCurrentQuestion(),
             ),
           ),
-
-          // Action buttons
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.2),
+                  color: Colors.grey.withOpacity(0.2),
                   spreadRadius: 1,
                   blurRadius: 5,
                   offset: const Offset(0, -3),
@@ -246,7 +341,21 @@ class McqPageState extends State<McqPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text(
+                        if (_isSavingResult)
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                              SizedBox(width: 8),
+                              Text('Saving result...'),
+                            ],
+                          )
+                        else
+                          Text(
                           'Your Score: $_score/${_questions.length}',
                           style: const TextStyle(
                             fontSize: 20,
@@ -312,7 +421,7 @@ class McqPageState extends State<McqPage> {
                           child: const Text('Submit Quiz'),
                         )
                       else
-                        const SizedBox(), // Remove Check Answer button
+                        const SizedBox(),
                       ElevatedButton(
                         onPressed: _currentQuestionIndex < _questions.length - 1
                             ? _nextQuestion
@@ -370,8 +479,8 @@ class McqPageState extends State<McqPage> {
         ),
         ...List.generate(_questions.length, (index) {
           final question = _questions[index];
-          final isCorrect =
-              _selectedAnswers[index] == question['correctAnswer'];
+          final correctAnswer = question['correctAnswer'] as int? ?? 0;
+          final isCorrect = _selectedAnswers[index] == correctAnswer;
 
           return Container(
             margin: const EdgeInsets.only(bottom: 20),
@@ -426,15 +535,17 @@ class McqPageState extends State<McqPage> {
 
   Widget _buildQuestionReview(
       Map<String, dynamic> question, int questionIndex) {
-    final List<String> options = question['options'];
-    final int correctAnswer = question['correctAnswer'];
+    final List<String> options = (question['options'] as List<dynamic>?)
+        ?.map((option) => option?.toString() ?? '')
+        .toList() ?? [];
+    final int correctAnswer = question['correctAnswer'] as int? ?? 0;
     final int? selectedAnswer = _selectedAnswers[questionIndex];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          question['question'],
+          question['question']?.toString() ?? 'No question available',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -494,7 +605,7 @@ class McqPageState extends State<McqPage> {
           );
         }).toList(),
         const SizedBox(height: 12),
-        if (question['explanation'] != null) ...[
+        if (question['explanation'] != null && question['explanation'].toString().isNotEmpty) ...[
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -513,7 +624,7 @@ class McqPageState extends State<McqPage> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(question['explanation']),
+                Text(question['explanation']?.toString() ?? ''),
               ],
             ),
           ),
@@ -524,14 +635,16 @@ class McqPageState extends State<McqPage> {
 
   Widget _buildCurrentQuestion() {
     final question = _questions[_currentQuestionIndex];
-    final List<String> options = question['options'];
-    final int correctAnswer = question['correctAnswer'];
+    final List<String> options = (question['options'] as List<dynamic>?)
+        ?.map((option) => option?.toString() ?? '')
+        .toList() ?? [];
+    final int correctAnswer = question['correctAnswer'] as int? ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          question['question'],
+          question['question']?.toString() ?? 'No question available',
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -547,22 +660,22 @@ class McqPageState extends State<McqPage> {
 
           if (_hasSubmitted) {
             if (isSelected && isCorrect) {
-              backgroundColor = Colors.green.withValues(alpha: 0.1);
+              backgroundColor = Colors.green.withOpacity(0.1);
               borderColor = Colors.green;
             } else if (isSelected && !isCorrect) {
-              backgroundColor = Colors.red.withValues(alpha: 0.1);
+              backgroundColor = Colors.red.withOpacity(0.1);
               borderColor = Colors.red;
             } else if (isCorrect) {
-              backgroundColor = Colors.green.withValues(alpha: 0.1);
+              backgroundColor = Colors.green.withOpacity(0.1);
               borderColor = Colors.green;
             } else {
-              backgroundColor = Colors.grey.withValues(alpha: 0.1);
+              backgroundColor = Colors.grey.withOpacity(0.1);
               borderColor = Colors.grey;
             }
           } else {
             backgroundColor = isSelected
                 ? widget.subjectData['color'].withOpacity(0.1)
-                : Colors.grey.withValues(alpha: 0.1);
+                : Colors.grey.withOpacity(0.1);
             borderColor =
                 isSelected ? widget.subjectData['color'] : Colors.grey;
           }
@@ -623,33 +736,34 @@ class McqPageState extends State<McqPage> {
         }),
         if (_hasSubmitted) ...[
           const SizedBox(height: 20),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Explanation:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.blue,
+          if (question['explanation'] != null && question['explanation'].toString().isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Explanation:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.blue,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  question['explanation'],
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    question['explanation']?.toString() ?? '',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ],
     );
