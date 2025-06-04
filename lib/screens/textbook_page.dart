@@ -1,82 +1,82 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'dart:async';
-
-void main() => runApp(
-      MaterialApp(
-        home: TextbookPage(
-          subjectId: 'science101',
-          topicId: 'biology-basics',
-        ),
-      ),
-    );
 
 class TextbookPage extends StatefulWidget {
   final String subjectId;
   final String topicId;
 
   const TextbookPage({
-    super.key,
+    Key? key,
     required this.subjectId,
     required this.topicId,
-  });
+  }) : super(key: key);
 
   @override
-  State<TextbookPage> createState() => _TextbookPageState();
+  _TextbookPageState createState() => _TextbookPageState();
 }
 
 class _TextbookPageState extends State<TextbookPage> {
-  late Future<Map<String, dynamic>> _textbookData;
-  late FlutterTts _flutterTts;
-  List<Map<String, dynamic>> _voices = [];
-  String? _selectedVoice;
+  final FlutterTts _flutterTts = FlutterTts();
+  bool _isTtsInitialized = false;
+  bool _isSpeaking = false;
   int? _currentlySpeakingIndex;
+  
+  // Sample data - replace with your actual data source
+  final List<Map<String, dynamic>> _content = [
+    {
+      'heading': 'Introduction to Biology',
+      'paragraph': 'Biology is the study of living organisms, divided into many specialized fields...',
+    },
+    {
+      'heading': 'Cell Structure',
+      'paragraph': 'Cells are the basic building blocks of all living things...',
+    },
+    {
+      'heading': 'Photosynthesis',
+      'paragraph': 'Photosynthesis is the process by which green plants use sunlight to synthesize foods...',
+    },
+  ];
 
   @override
   void initState() {
     super.initState();
-    _flutterTts = FlutterTts();
-    _textbookData = fetchTextbookData(widget.subjectId, widget.topicId);
     _initTts();
   }
 
   Future<void> _initTts() async {
     try {
+      // Set TTS settings
+      await _flutterTts.setLanguage('en-US');
       await _flutterTts.setPitch(1.0);
       await _flutterTts.setSpeechRate(0.5);
-      final voices = (await _flutterTts.getVoices) as List<dynamic>?;
-
-      if (voices != null) {
-        _voices = voices
-            .cast<Map<String, dynamic>>()
-            .where((v) => v['locale']?.toString().startsWith('en') ?? false)
-            .take(4)
-            .toList();
-      }
-
-      if (_voices.isNotEmpty && mounted) {
-        _selectedVoice = _voices[0]['name'] as String?;
-        if (_selectedVoice != null) {
-          await _flutterTts.setVoice({
-            'name': _selectedVoice!,
-            'locale': _voices[0]['locale'] as String? ?? 'en-US',
-          });
-        }
-      } else if (mounted) {
-        setState(() {
-          _selectedVoice = null;
-        });
-      }
-
-      await _flutterTts.setLanguage('en-US');
-
+      
+      // Set completion handler
       _flutterTts.setCompletionHandler(() {
         if (mounted) {
           setState(() {
             _currentlySpeakingIndex = null;
+            _isSpeaking = false;
           });
         }
       });
+      
+      // Set error handler
+      _flutterTts.setErrorHandler((msg) {
+        if (mounted) {
+          setState(() {
+            _isSpeaking = false;
+            _currentlySpeakingIndex = null;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('TTS Error: $msg')),
+          );
+        }
+      });
+      
+      setState(() {
+        _isTtsInitialized = true;
+      });
+      
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -86,427 +86,106 @@ class _TextbookPageState extends State<TextbookPage> {
     }
   }
 
-  Future<Map<String, dynamic>> fetchTextbookData(
-      String subjectId, String topicId) async {
-    await Future.delayed(const Duration(seconds: 1));
-
-    return {
-      "subjectData": {
-        "id": subjectId,
-        "name": "Science",
-        "color": const Color(0xFF2196F3),
-      },
-      "topicData": {
-        "id": topicId,
-        "title": "Biology Basics",
-        "icon": "https://cdn-icons-png.flaticon.com/512/616/616408.png",
-        "content": [
-          {
-            "heading": "Introduction to Biology",
-            "paragraph":
-                "Biology is the study of living organisms, divided into many specialized fields...",
-            "image":
-                "https://media.istockphoto.com/id/1322220448/photo/abstract-digital-futuristic-eye.jpg?s=1024x1024&w=is&k=20&c=LEk3Riu7RsJXkWMTEdmQ1yDkgf5F95ScLNZQ4j0P23g="
-          },
-          {
-            "heading": "Cell Structure",
-            "paragraph":
-                "Cells are the basic building blocks of all living things. They can be prokaryotic or eukaryotic..."
-          },
-          {
-            "heading": "Photosynthesis",
-            "paragraph":
-                "Photosynthesis is the process by which green plants and some other organisms use sunlight to synthesize foods...",
-            "image":
-                "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Photosynthesis.svg/1280px-Photosynthesis.svg.png"
-          }
-        ]
-      }
-    };
-  }
-
   Future<void> _speak(String text, int index) async {
     try {
-      // If already speaking this text, stop speaking
-      if (_currentlySpeakingIndex == index) {
+      // If already speaking, stop and reset
+      if (_isSpeaking) {
         await _flutterTts.stop();
         if (mounted) {
           setState(() {
+            _isSpeaking = false;
             _currentlySpeakingIndex = null;
           });
+          // If clicking the same item that's speaking, don't start again
+          if (_currentlySpeakingIndex == index) return;
         }
-        return;
       }
-
-      // If no voices are available, show error
-      if (_voices.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No voices available for text-to-speech'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-        return;
-      }
-
-      // Get the selected voice or default to first available
-      final voice = _selectedVoice != null
-          ? _voices.firstWhere(
-              (v) => v['name'] == _selectedVoice,
-              orElse: () => _voices.first,
-            )
-          : _voices.first;
-
-      // Set the voice and speak
-      await _flutterTts.setVoice({
-        'name': voice['name'] as String? ?? 'default',
-        'locale': voice['locale'] as String? ?? 'en-US',
-      });
 
       // Update UI to show which text is being spoken
       if (mounted) {
         setState(() {
           _currentlySpeakingIndex = index;
+          _isSpeaking = true;
         });
+      }
+
+      // Ensure TTS is initialized
+      if (!_isTtsInitialized) {
+        await _initTts();
       }
 
       // Start speaking
       await _flutterTts.speak(text);
+      
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _isSpeaking = false;
+          _currentlySpeakingIndex = null;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error with text-to-speech: ${e.toString()}'),
+            content: Text('Error: ${e.toString()}'),
             duration: const Duration(seconds: 3),
           ),
         );
-        // Reset speaking state on error
-        if (mounted) {
-          setState(() {
-            _currentlySpeakingIndex = null;
-          });
-        }
       }
     }
-  }
-
-  String _getGifForVoice(String? voiceName) {
-    if (voiceName == null) return 'Avatars/Boy avatar.gif';
-    final lower = voiceName.toLowerCase();
-    if (lower.contains('female')) return 'Avatars/Female avatar.gif';
-    if (lower.contains('girl')) return 'Avatars/Girl avatar.gif';
-    if (lower.contains('male')) return 'Avatars/Male avatar.gif';
-    if (lower.contains('boy')) return 'Avatars/Boy avatar.gif';
-    return 'Avatars/Boy avatar.gif';
   }
 
   @override
   void dispose() {
     _flutterTts.stop();
-    _flutterTts = FlutterTts();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _textbookData,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        } else if (snapshot.hasError) {
-          return Scaffold(
-            body: Center(child: Text('Error: ${snapshot.error}')),
-          );
-        } else {
-          final subjectData = snapshot.data!['subjectData'];
-          final topicData = snapshot.data!['topicData'];
-          final List<dynamic> content = topicData['content'];
-
-          return Scaffold(
-            appBar: AppBar(
-              title: Text(
-                topicData['title'],
-                style: const TextStyle(color: Colors.white),
-              ),
-              backgroundColor: subjectData['color'],
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
-              ),
-              elevation: 2,
-            ),
-            body: Stack(
-              children: [
-                Container(
-                  color: const Color(0xFFF5F7FB),
-                  child: SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Card(
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            color: subjectData['color'].withOpacity(0.9),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 32,
-                                    backgroundColor: Colors.white,
-                                    child: Image.network(
-                                      topicData['icon'],
-                                      width: 36,
-                                      height: 36,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              const Icon(Icons.error),
-                                      loadingBuilder:
-                                          (context, child, loadingProgress) {
-                                        if (loadingProgress == null) {
-                                          return child;
-                                        }
-                                        return const CircularProgressIndicator();
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 20),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          topicData['title'],
-                                          style: const TextStyle(
-                                            fontSize: 26,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          subjectData['name'],
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            color: Colors.white70,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Textbook'),
+      ),
+      body: ListView.builder(
+        itemCount: _content.length,
+        itemBuilder: (context, index) {
+          final section = _content[index];
+          final isSpeaking = _currentlySpeakingIndex == index;
+          
+          return Card(
+            margin: const EdgeInsets.all(8.0),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          section['heading'],
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(height: 24),
-                          if (_voices.isNotEmpty) ...[
-                            const Text(
-                              "Select Voice:",
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 4),
-                            DropdownButton<String>(
-                              value: _selectedVoice,
-                              items: _voices
-                                  .map<DropdownMenuItem<String>>(
-                                    (voice) => DropdownMenuItem<String>(
-                                      value: voice['name'] as String?,
-                                      child: Text(voice['name']?.toString() ??
-                                          'Unknown Voice'),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (value) async {
-                                if (value == null) return;
-                                setState(() {
-                                  _selectedVoice = value;
-                                });
-                                try {
-                                  final voice = _voices.firstWhere(
-                                    (v) => v['name'] == value,
-                                    orElse: () => _voices[0],
-                                  );
-                                  await _flutterTts.setVoice({
-                                    'name': voice['name'] as String? ?? value,
-                                    'locale':
-                                        voice['locale'] as String? ?? 'en-US',
-                                  });
-                                } catch (e) {
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                          content: Text('Voice Error: $e')),
-                                    );
-                                  }
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 18),
-                          ] else ...[
-                            const Text(
-                              "No voices available",
-                              style: TextStyle(color: Colors.red),
-                            ),
-                            const SizedBox(height: 18),
-                          ],
-                          ...List.generate(content.length, (index) {
-                            final section = content[index];
-                            final isSpeaking = _currentlySpeakingIndex == index;
-                            return Column(
-                              children: [
-                                Card(
-                                  elevation: isSpeaking ? 8 : 3,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  color: isSpeaking
-                                      ? Colors.yellow.withOpacity(0.15)
-                                      : Colors.white,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(18.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                section['heading'],
-                                                style: TextStyle(
-                                                  fontSize: 24,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: subjectData['color'],
-                                                ),
-                                              ),
-                                            ),
-                                            IconButton(
-                                              icon: Icon(
-                                                isSpeaking
-                                                    ? Icons.stop_circle
-                                                    : Icons.volume_up_rounded,
-                                                color: isSpeaking
-                                                    ? Colors.red
-                                                    : Colors.blue[700],
-                                                size: 28,
-                                              ),
-                                              onPressed: _selectedVoice != null
-                                                  ? () => _speak(
-                                                      section['paragraph'],
-                                                      index)
-                                                  : null,
-                                              tooltip: isSpeaking
-                                                  ? "Stop"
-                                                  : "Listen",
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Text(
-                                          section['paragraph'],
-                                          style: const TextStyle(
-                                            fontSize: 16.5,
-                                            height: 1.5,
-                                          ),
-                                        ),
-                                        if (section.containsKey('image'))
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                                top: 16.0),
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              child: Image.network(
-                                                section['image'],
-                                                height: 160,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (context, error,
-                                                        stackTrace) =>
-                                                    const Icon(Icons.error),
-                                                loadingBuilder: (context, child,
-                                                    loadingProgress) {
-                                                  if (loadingProgress == null) {
-                                                    return child;
-                                                  }
-                                                  return const Center(
-                                                      child:
-                                                          CircularProgressIndicator());
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                if (index != content.length - 1)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Divider(
-                                            color: Colors.grey[400],
-                                            thickness: 1,
-                                          ),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8),
-                                          child: Icon(Icons.arrow_downward,
-                                              color: Colors.grey[400],
-                                              size: 18),
-                                        ),
-                                        Expanded(
-                                          child: Divider(
-                                            color: Colors.grey[400],
-                                            thickness: 1,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            );
-                          }),
-                          const SizedBox(height: 24),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-                if (_currentlySpeakingIndex != null)
-                  Positioned(
-                    bottom: 24,
-                    right: 24,
-                    child: SizedBox(
-                      width: 64,
-                      height: 64,
-                      child: Image.asset(
-                        _getGifForVoice(_selectedVoice),
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.audiotrack),
+                      IconButton(
+                        icon: Icon(
+                          isSpeaking ? Icons.stop : Icons.volume_up,
+                          color: isSpeaking ? Colors.red : Colors.blue,
+                        ),
+                        onPressed: () => _speak(section['paragraph'], index),
                       ),
-                    ),
+                    ],
                   ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(section['paragraph']),
+                ],
+              ),
             ),
           );
-        }
-      },
+        },
+      ),
     );
   }
 }
