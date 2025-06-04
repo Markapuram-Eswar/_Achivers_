@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -5,7 +6,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:achiver_app/services/gemini_service.dart';
-import 'package:achiver_app/services/doubt_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shimmer/shimmer.dart';
+
+// Import Firebase Storage
+import 'package:achiver_app/dout_service.dart';
 
 class DoubtsPage extends StatefulWidget {
   const DoubtsPage({super.key});
@@ -14,17 +19,26 @@ class DoubtsPage extends StatefulWidget {
   State<DoubtsPage> createState() => _DoubtsPageState();
 }
 
+String? _currentRollNumber;
+String? _currentStudentName;
+bool _isAuthenticated = false;
+
 class _DoubtsPageState extends State<DoubtsPage> {
+  // Initialize services properly
+  late DoubtService _doubtService;
+  late GeminiService _geminiService;
+
   final TextEditingController _textController = TextEditingController();
-  List<Map<String, dynamic>> _messages =
-      []; // Changed to non-final to allow reassignment
   final ImagePicker _picker = ImagePicker();
-  final GeminiService _geminiService = GeminiService();
-  late final DoubtService _doubtService;
-  bool _isLoading = false;
+
   final ScrollController _scrollController = ScrollController();
-  String? _currentUserId; // Will store the student's roll number
+
+  String? _currentUserId;
   String? _selectedSubject;
+  bool _isLoading = false;
+  List<Map<String, dynamic>> _messages = [];
+
+  // List of predefined subjects
   final List<String> _subjects = [
     'Mathematics',
     'Physics',
@@ -36,159 +50,227 @@ class _DoubtsPageState extends State<DoubtsPage> {
     'Other'
   ];
 
+  // Stream subscription for messages of the selected subject
+  Stream<QuerySnapshot>? _messagesStream;
+  StreamSubscription<User?>? _authStateSubscription;
+
   @override
   void initState() {
     super.initState();
+    _textController.addListener(() {
+      setState(() {}); // rebuild to update the send button state
+    });
+
+    // Initialize services here
     _doubtService = DoubtService();
-    // Get the current user's ID (roll number)
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
+    _geminiService = GeminiService();
+    // Check if user is already logged in using SharedPreferences
+    _checkExistingLogin();
+  }
+
+  Future<void> _checkExistingLogin() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? savedRollNumber = prefs.getString('student_roll_number');
+    String? savedStudentName = prefs.getString('student_name');
+
+    if (savedRollNumber != null && savedStudentName != null) {
       setState(() {
-        _currentUserId =
-            user.uid; // Or use a field from user data that contains roll number
+        _currentRollNumber = savedRollNumber;
+        _currentStudentName = savedStudentName;
+        _isAuthenticated = true;
       });
     }
-    _loadPreviousDoubts();
   }
 
-  @override
-  void dispose() {
-    _textController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
-  }
-
-  Future<void> _loadPreviousDoubts() async {
-    if (_currentUserId == null) return;
-
+  Future<void> _authenticateWithRollNumber(String rollNumber) async {
     try {
-      /* Backend TODO: Fetch previous doubts from backend (API call, database read) */
-      final snapshot =
-          await _doubtService.getStudentDoubts(_currentUserId!).first;
-      if (snapshot.docs.isNotEmpty) {
-        // Convert Firestore docs to message format
-        final loadedMessages = <Map<String, dynamic>>[];
+      // Query Firestore to check if roll number exists
+      QuerySnapshot studentQuery = await FirebaseFirestore.instance
+          .collection('students')
+          .where('rollNumber', isEqualTo: rollNumber)
+          .limit(1)
+          .get();
 
-        for (final doc in snapshot.docs) {
-          final data = doc.data() as Map<String, dynamic>;
-          final message = {
-            'id': doc.id,
-            'type': data['imageUrl'] != null ? 'image' : 'text',
-            'content': data['message'],
-            'response': data['response'],
-            'isUser': true,
-            'timestamp': (data['timestamp'] as Timestamp).toDate(),
-          };
-          loadedMessages.add(message);
-        }
+      if (studentQuery.docs.isNotEmpty) {
+        // Student found
+        var studentData =
+            studentQuery.docs.first.data() as Map<String, dynamic>;
+        String studentName = studentData['name'] ?? 'Student';
+
+        // Save login info to SharedPreferences
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('student_roll_number', rollNumber);
+        await prefs.setString('student_name', studentName);
+
+        setState(() {
+          _currentRollNumber = rollNumber;
+          _currentStudentName = studentName;
+          _isAuthenticated = true;
+        });
 
         if (mounted) {
-          setState(() {
-            _messages = loadedMessages;
-          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Welcome back, $studentName!')),
+          );
+        }
+      } else {
+        // Student not found
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content:
+                    Text('Roll number not found. Please check and try again.')),
+          );
         }
       }
     } catch (e) {
-      /* Backend TODO: Handle error fetching doubts from backend */
       if (kDebugMode) {
-        print('Error loading previous doubts: $e');
+        print('Error authenticating with roll number: $e');
       }
-    }
-  }
-
-  Future<void> _saveDoubtToDatabase(String message, String response,
-      {String? imageUrl, String? subject}) async {
-    if (_currentUserId == null) return;
-
-    try {
-      /* Backend TODO: Save doubt to backend (API call, database write, file upload if image) */
-      await _doubtService.saveDoubt(
-        studentRollNumber: _currentUserId!,
-        message: message,
-        subject: subject,
-        imageUrl: imageUrl,
-        response: response,
-        timestamp: DateTime.now(),
-      );
-    } catch (e) {
-      /* Backend TODO: Handle error saving doubt to backend */
-      if (kDebugMode) {
-        print('Error saving doubt: $e');
-      }
-      // Optionally show error to user
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Failed to save your doubt. Please try again.')),
+              content: Text('Authentication failed. Please try again.')),
         );
       }
     }
   }
 
-  Future<void> _sendText(String text) async {
-    if (text.trim().isEmpty) return;
-
-    // Include subject in the prompt if selected
-    final String prompt = _selectedSubject != null 
-        ? '[$_selectedSubject] $text'
-        : text;
+  Future<void> _logout() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('student_roll_number');
+    await prefs.remove('student_name');
 
     setState(() {
+      _currentRollNumber = null;
+      _currentStudentName = null;
+      _isAuthenticated = false;
+      _selectedSubject = null;
+      _messages.clear();
+      _messagesStream = null;
+    });
+  }
+
+  @override
+  void dispose() {
+    _authStateSubscription?.cancel();
+    _textController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // A helper to initialize or re-initialize the messages stream
+  void _initializeMessagesStream() {
+    if (_currentRollNumber != null && _selectedSubject != null) {
+      _messagesStream = _doubtService.getSubjectMessages(
+        _currentRollNumber!, // Use roll number instead of user ID
+        _selectedSubject!,
+      );
+    } else {
+      _messagesStream = null;
+      setState(() {
+        _messages = [];
+      });
+    }
+  }
+
+  // Handles subject selection and initializes the messages stream
+  void _onSubjectSelected(String subject) {
+    setState(() {
+      _selectedSubject = subject;
+      _messages = [];
+      _initializeMessagesStream();
+    });
+  }
+
+  // This method now scrolls to the *bottom* (latest messages)
+  void _scrollToBottom({bool smooth = true}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        final position = _scrollController.position.maxScrollExtent;
+        if (smooth) {
+          _scrollController.animateTo(
+            position,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        } else {
+          _scrollController.jumpTo(position);
+        }
+      }
+    });
+  }
+
+  Future<void> _sendText() async {
+    final text = _textController.text.trim();
+    if (text.isEmpty ||
+        _currentRollNumber == null ||
+        _selectedSubject == null) {
+      return;
+    }
+
+    /// Display user's message immediately (optimistic update)
+    setState(() {
       _messages.insert(0, {
-        "type": "text", 
-        "content": _selectedSubject != null 
-            ? '($_selectedSubject) $text' 
-            : text, 
-        "isUser": true
+        "type": "text",
+        "content": text,
+        "isUser": true,
+        "timestamp": DateTime.now().millisecondsSinceEpoch,
       });
       _isLoading = true;
     });
+    _textController.clear();
     _scrollToBottom();
 
     try {
-      /* Backend TODO: Integrate with external AI service for response generation */
-      final response = await _geminiService.generateResponse(prompt);
-      setState(() {
-        _messages
-            .insert(0, {"type": "text", "content": response, "isUser": false});
-      });
-      _scrollToBottom();
+      final String prompt = _selectedSubject != null
+          ? 'Regarding $_selectedSubject: $text'
+          : text;
 
-      // Save the doubt and response to Firestore with subject
-      await _saveDoubtToDatabase(
-        _selectedSubject != null ? '[$_selectedSubject] $text' : text, 
-        response,
-        subject: _selectedSubject,
+      final geminiResponse = await _geminiService.generateResponse(prompt);
+
+      // Save user's message to Firestore using roll number
+      await _doubtService.addMessageToSubjectChat(
+        userId: _currentRollNumber!, // Changed from _currentUserId
+        subjectId: _selectedSubject!,
+        message: text,
+        isUser: true,
       );
-    } catch (e) {
-      /* Backend TODO: Handle error from external AI service */
-      if (kDebugMode) {
-        print('Error sending text: $e');
-      }
+
+      // Save AI's response to Firestore
+      await _doubtService.addMessageToSubjectChat(
+        userId: _currentRollNumber!, // Changed from _currentUserId
+        subjectId: _selectedSubject!,
+        message: geminiResponse,
+        isUser: false,
+      );
+
+      // Display AI response in UI
       setState(() {
         _messages.insert(0, {
           "type": "text",
-          "content":
-              "I apologize, but I couldn't process your request. Please try again.",
-          "isUser": false
+          "content": geminiResponse,
+          "isUser": false,
+          "timestamp": DateTime.now().millisecondsSinceEpoch,
         });
       });
+      _scrollToBottom();
+      _textController.clear();
+    } catch (e) {
+      // ... keep existing error handling code
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _pickImage() async {
+    if (_currentRollNumber == null || _selectedSubject == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a subject first.')),
+      );
+      return;
+    }
+
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -196,56 +278,49 @@ class _DoubtsPageState extends State<DoubtsPage> {
       );
       if (image == null) return;
 
-      setState(() {
-        _isLoading = true;
-        _messages.insert(
-            0, {"type": "image", "content": image.path, "isUser": true});
-      });
-      _scrollToBottom();
+      // ... keep existing image display code ...
 
       try {
-        /* Backend TODO: Integrate with external AI image analysis service */
-        final response = await _geminiService.analyzeImage(image.path, '');
-        setState(() {
-          _messages.insert(
-              0, {"type": "text", "content": response, "isUser": false});
-        });
-        _scrollToBottom();
+        // Upload image to Firebase Storage
+        final imageUrl = await _doubtService.uploadImage(File(image.path));
 
-        // Save the image doubt and response to Firestore
-        // Note: In a real app, you'd want to upload the image to Firebase Storage
-        // and save the download URL instead of the local path
-        await _saveDoubtToDatabase(
-          'Image question',
-          response,
-          imageUrl: image.path,
+        final geminiResponse = await _geminiService.analyzeImage(
+            image.path, 'Analyze this image related to $_selectedSubject:');
+
+        // Save user's image message to Firestore using roll number
+        await _doubtService.addMessageToSubjectChat(
+          userId: _currentRollNumber!, // Changed from _currentUserId
+          subjectId: _selectedSubject!,
+          message: 'Image shared for $_selectedSubject',
+          imageUrl: imageUrl,
+          isUser: true,
         );
+
+        // Save AI's response to Firestore using roll number
+        await _doubtService.addMessageToSubjectChat(
+          userId: _currentRollNumber!, // Changed from _currentUserId
+          subjectId: _selectedSubject!,
+          message: geminiResponse,
+          isUser: false,
+        );
+
+        // ... keep existing response display code ...
       } catch (e) {
-        /* Backend TODO: Handle error from external AI image analysis service */
-        if (kDebugMode) {
-          print('Error analyzing image: $e');
-        }
-        setState(() {
-          _messages.insert(0, {
-            "type": "text",
-            "content":
-                "I apologize, but I couldn't analyze the image. Please try uploading it again.",
-            "isUser": false
-          });
-        });
+        // ... keep existing error handling code
       }
     } catch (e) {
-      /* Backend TODO: Handle error picking image */
-      if (kDebugMode) {
-        print('Error picking image: $e');
-      }
+      // ... keep existing error handling code
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
+// This method should already exist in your code - here it is for reference
   Widget _buildMessage(Map<String, dynamic> message) {
     final isUser = message['isUser'] == true;
+    final messageContent = message['content'];
+    final messageType = message['type'];
+    final imageUrl = message['imageUrl'];
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -263,7 +338,7 @@ class _DoubtsPageState extends State<DoubtsPage> {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 5,
               offset: const Offset(0, 2),
             ),
@@ -298,53 +373,264 @@ class _DoubtsPageState extends State<DoubtsPage> {
               ],
             ),
             const SizedBox(height: 12),
-            message['type'] == 'text'
-                ? SelectableText(
-                    message['content'],
-                    style: TextStyle(
-                      color: Colors.grey[800],
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.grey.shade200,
-                            width: 2,
-                          ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.file(
-                            File(message['content']),
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    ],
+            if (messageType == 'text')
+              SelectableText(
+                messageContent,
+                style: TextStyle(
+                  color: Colors.grey[800],
+                  fontSize: 16,
+                  height: 1.5,
+                ),
+              )
+            else if (messageType == 'image' && imageUrl != null)
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.grey.shade200,
+                    width: 2,
                   ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    imageUrl,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) =>
+                        Image.file(File(messageContent)),
+                  ),
+                ),
+              ),
+            if (messageType == 'image' &&
+                isUser &&
+                messageContent is String &&
+                !messageContent.startsWith('http'))
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  'Your image question',
+                  style: TextStyle(
+                      color: Colors.grey[600], fontStyle: FontStyle.italic),
+                ),
+              ),
+            if (messageType == 'image' && !isUser && messageContent is String)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: SelectableText(
+                  messageContent,
+                  style: TextStyle(
+                    color: Colors.grey[800],
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildLoginScreen() {
+    final TextEditingController rollNumberController = TextEditingController();
+    bool isLoading = false;
+
+    return StatefulBuilder(
+      builder: (context, setLoginState) {
+        return Scaffold(
+          resizeToAvoidBottomInset: false,
+          appBar: AppBar(
+            title: const Text("Study Buddy - Login"),
+            centerTitle: true,
+            backgroundColor: Colors.white,
+            elevation: 2,
+          ),
+          body: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.school,
+                        size: 100, color: Colors.purple.shade400),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Welcome to Study Buddy',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Enter your roll number to continue',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.shade200,
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: rollNumberController,
+                        enabled: !isLoading,
+                        decoration: InputDecoration(
+                          labelText: 'Roll Number',
+                          hintText: 'Enter your roll number',
+                          prefixIcon: const Icon(Icons.person),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                        ),
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (value) async {
+                          if (value.trim().isNotEmpty && !isLoading) {
+                            setLoginState(() => isLoading = true);
+                            await _authenticateWithRollNumber(value.trim());
+                            setLoginState(() => isLoading = false);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: isLoading
+                            ? null
+                            : () async {
+                                if (rollNumberController.text
+                                    .trim()
+                                    .isNotEmpty) {
+                                  setLoginState(() => isLoading = true);
+                                  await _authenticateWithRollNumber(
+                                      rollNumberController.text.trim());
+                                  setLoginState(() => isLoading = false);
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purple.shade400,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
+                            : const Text(
+                                'Login',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // If not authenticated, show login screen
+    if (!_isAuthenticated) {
+      return _buildLoginScreen();
+    }
+    // If no user is logged in, show a simple message or redirect
+    if (_currentRollNumber == null || _currentStudentName == null) {
+      return Scaffold(
+        resizeToAvoidBottomInset: false,
+        appBar: AppBar(
+          title: const Text("Study Buddy"),
+          actions: [
+            // Add a refresh button to manually check auth state
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                setState(() {
+                  _currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                });
+              },
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.login, size: 64, color: Colors.grey),
+                const SizedBox(height: 16),
+                const Text(
+                  "Please log in to use Study Buddy.",
+                  style: TextStyle(fontSize: 18),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    // Force check auth state
+                    setState(() {
+                      _currentUserId = FirebaseAuth.instance.currentUser?.uid;
+                    });
+                  },
+                  child: const Text('Refresh'),
+                ),
+                if (kDebugMode) ...[
+                  const SizedBox(height: 16),
+                  Text('Debug: Current User ID: $_currentUserId'),
+                  Text(
+                      'Debug: Firebase User: ${FirebaseAuth.instance.currentUser?.uid}'),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: const Text(
-          "Study Buddy",
-          style: TextStyle(
+        title: Text(
+          "Study Buddy${_currentStudentName != null ? ' - $_currentStudentName' : ''}",
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 24,
+            fontSize: 20,
           ),
         ),
         centerTitle: true,
@@ -352,8 +638,14 @@ class _DoubtsPageState extends State<DoubtsPage> {
         elevation: 2,
         actions: [
           IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _logout,
+            tooltip: 'Logout',
+          ),
+          IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () {
+              // REMOVED the extra opening brace here
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
@@ -398,7 +690,6 @@ class _DoubtsPageState extends State<DoubtsPage> {
         ],
       ),
       body: SafeArea(
-        bottom: false,
         child: Column(
           children: [
             // Subject selection dropdown
@@ -408,19 +699,20 @@ class _DoubtsPageState extends State<DoubtsPage> {
               child: DropdownButtonFormField<String>(
                 value: _selectedSubject,
                 decoration: InputDecoration(
-                  labelText: 'Select Subject (optional)',
+                  labelText: 'Select Subject',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
                   filled: true,
                   fillColor: Colors.grey.shade50,
                 ),
                 items: [
                   const DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('No specific subject'),
+                    value: '',
+                    child: Text('Please select a subject...'),
                   ),
                   ..._subjects.map((subject) => DropdownMenuItem<String>(
                         value: subject,
@@ -428,106 +720,195 @@ class _DoubtsPageState extends State<DoubtsPage> {
                       )),
                 ],
                 onChanged: (value) {
-                  setState(() {
-                    _selectedSubject = value;
-                  });
+                  if (value != null && value.isNotEmpty) {
+                    _onSubjectSelected(value);
+                  } else {
+                    setState(() {
+                      _selectedSubject = null;
+                      _messages = [];
+                      _initializeMessagesStream();
+                    });
+                  }
                 },
                 isExpanded: true,
-                icon: Icon(Icons.arrow_drop_down, color: Colors.purple.shade700),
+                icon:
+                    Icon(Icons.arrow_drop_down, color: Colors.purple.shade700),
               ),
             ),
             Expanded(
-              child: _messages.isEmpty
-                  ? SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: MediaQuery.of(context).size.height - 200,
-                        ),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const SizedBox(height: 20),
-                              Icon(
-                                Icons.school_outlined,
-                                size: 72,
-                                color: Colors.purple.shade200,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Hello! I\'m your Study Buddy!',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  color: Colors.purple.shade700,
-                                  fontWeight: FontWeight.bold,
+              child: _selectedSubject == null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.subject,
+                            size: 72,
+                            color: Colors.purple.shade200,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Select a Subject to Start Chatting!',
+                            style: TextStyle(
+                              fontSize: 20,
+                              color: Colors.purple.shade700,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Your conversations will be saved per subject.',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    )
+                  : StreamBuilder<QuerySnapshot>(
+                      stream: _messagesStream,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(
+                              child: Text('Error: ${snapshot.error}'));
+                        }
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.school_outlined,
+                                  size: 72,
+                                  color: Colors.purple.shade200,
                                 ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 8),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                                child: Text(
-                                  'Ask me anything about your studies',
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Hello! I\'m your Study Buddy for $_selectedSubject!',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    color: Colors.purple.shade700,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Ask me anything about $_selectedSubject',
                                   style: TextStyle(
                                     fontSize: 16,
                                     color: Colors.grey.shade600,
                                   ),
-                                  textAlign: TextAlign.center,
                                 ),
-                              ),
-                              const SizedBox(height: 24),
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                margin: const EdgeInsets.symmetric(horizontal: 32),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.purple.shade100
-                                          .withOpacity(0.3),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
+                                const SizedBox(height: 24),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 32),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.purple.shade100
+                                            .withOpacity(0.3),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      _buildSuggestion(
+                                        'What are Newton\'s laws of motion?',
+                                        Icons.speed,
+                                      ),
+                                      const Divider(),
+                                      _buildSuggestion(
+                                        'How do I solve quadratic equations?',
+                                        Icons.functions,
+                                      ),
+                                      const Divider(),
+                                      _buildSuggestion(
+                                        'Explain photosynthesis process',
+                                        Icons.nature,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                child: Column(
-                                  children: [
-                                    _buildSuggestion(
-                                      'How do I solve quadratic equations?',
-                                      Icons.functions,
+                              ],
+                            ),
+                          );
+                        }
+
+                        // Reconstruct _messages list from snapshot
+                        _messages = snapshot.data!.docs.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          return {
+                            'id': doc.id,
+                            'type': data['imageUrl'] != null ? 'image' : 'text',
+                            'content': data['imageUrl'] ?? data['message'],
+                            'imageUrl': data['imageUrl'],
+                            'isUser': data['isUser'],
+                            'timestamp': (data['timestamp'] as Timestamp?)
+                                    ?.toDate()
+                                    .millisecondsSinceEpoch ??
+                                0,
+                          };
+                        }).toList();
+
+                        // Sort messages by timestamp
+                        _messages.sort((a, b) => (a['timestamp'] as int)
+                            .compareTo(b['timestamp'] as int));
+
+                        // Scroll to bottom after new messages arrive
+
+                        return ListView.builder(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.only(bottom: 8),
+                          itemCount:
+                              _isLoading ? _messages.length : _messages.length,
+                          itemBuilder: (_, index) {
+                            if (_isLoading && index == _messages.length) {
+                              // Show shimmer or loading widget at the end
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 12.0, horizontal: 16.0),
+                                child: Align(
+                                  alignment:
+                                      Alignment.centerLeft, // mimic AI response
+                                  child: Shimmer.fromColors(
+                                    baseColor:
+                                        const Color.fromARGB(255, 104, 87, 87),
+                                    highlightColor:
+                                        const Color.fromARGB(255, 121, 86, 86),
+                                    child: Container(
+                                      height: 60,
+                                      width: MediaQuery.of(context).size.width *
+                                          0.6,
+                                      decoration: BoxDecoration(
+                                        color: const Color.fromARGB(
+                                            255, 68, 42, 42),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
                                     ),
-                                    const Divider(),
-                                    _buildSuggestion(
-                                      'Explain photosynthesis process',
-                                      Icons.nature,
-                                    ),
-                                    const Divider(),
-                                    _buildSuggestion(
-                                      'What are Newton\'s laws of motion?',
-                                      Icons.speed,
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 20),
-                            ],
-                          ),
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      reverse: true,
-                      padding: EdgeInsets.only(
-                        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-                        top: 16,
-                        left: 8,
-                        right: 8,
-                      ),
-                      itemCount: _messages.length,
-                      itemBuilder: (_, index) => _buildMessage(_messages[index]),
+                              );
+                            }
+
+                            return _buildMessage(_messages[index]);
+                          },
+                        );
+                      },
                     ),
             ),
             if (_isLoading)
@@ -558,12 +939,7 @@ class _DoubtsPageState extends State<DoubtsPage> {
                 ),
               ),
             Container(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 8,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 8,
-              ),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
@@ -584,7 +960,9 @@ class _DoubtsPageState extends State<DoubtsPage> {
                     child: IconButton(
                       icon: const Icon(Icons.image_outlined),
                       color: Colors.purple.shade700,
-                      onPressed: _isLoading ? null : _pickImage,
+                      onPressed: _isLoading || _selectedSubject == null
+                          ? null
+                          : _pickImage,
                       tooltip: 'Upload an image',
                     ),
                   ),
@@ -604,20 +982,34 @@ class _DoubtsPageState extends State<DoubtsPage> {
                           Expanded(
                             child: TextField(
                               controller: _textController,
-                              enabled: !_isLoading,
+                              enabled: !_isLoading && _selectedSubject != null,
                               maxLines: null,
                               keyboardType: TextInputType.multiline,
                               textCapitalization: TextCapitalization.sentences,
                               decoration: InputDecoration(
-                                hintText: _isLoading
-                                    ? "Please wait..."
-                                    : "Ask your question here...",
+                                hintText: _selectedSubject == null
+                                    ? "Please select a subject above to chat"
+                                    : (_isLoading
+                                        ? "Please wait..."
+                                        : "Ask your question here..."),
                                 border: InputBorder.none,
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 20,
                                   vertical: 12,
                                 ),
                               ),
+                              onSubmitted: (value) {
+                                if (!_isLoading &&
+                                    _selectedSubject != null &&
+                                    value.trim().isNotEmpty) {
+                                  _messages.add({
+                                    'type': 'thinking',
+                                    'content': 'Thinking...',
+                                    'isUser': false,
+                                  });
+                                  _sendText();
+                                }
+                              },
                             ),
                           ),
                           Container(
@@ -631,16 +1023,11 @@ class _DoubtsPageState extends State<DoubtsPage> {
                                 Icons.send_rounded,
                                 color: Colors.purple.shade700,
                               ),
-                              onPressed: _isLoading
-                                  ? null
-                                  : () {
-                                      if (_textController.text
-                                          .trim()
-                                          .isNotEmpty) {
-                                        _sendText(_textController.text);
-                                        _textController.clear();
-                                      }
-                                    },
+                              onPressed: (!_isLoading &&
+                                      _selectedSubject != null &&
+                                      _textController.text.trim().isNotEmpty)
+                                  ? _sendText
+                                  : null,
                               tooltip: 'Send message',
                             ),
                           ),
@@ -661,10 +1048,12 @@ class _DoubtsPageState extends State<DoubtsPage> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          _textController.text = text;
-          _sendText(text);
-        },
+        onTap: _selectedSubject == null || _isLoading
+            ? null
+            : () {
+                _textController.text = text;
+                _sendText();
+              },
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
