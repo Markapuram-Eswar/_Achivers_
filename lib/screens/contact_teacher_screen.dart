@@ -59,6 +59,7 @@ class ContactTeacherScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.blue[900],
         title: const Text(
           'Contact Teachers',

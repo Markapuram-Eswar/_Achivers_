@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class AttendanceCalendarPage extends StatefulWidget {
   const AttendanceCalendarPage({super.key});
@@ -15,21 +17,27 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
   late DateTime _selectedDay;
   Map<DateTime, Map<String, String>> _attendanceStatus = {};
   bool _isLoading = true;
+  double _attendancePercentage = 0.0;
 
   @override
   void initState() {
     super.initState();
     _focusedDay = DateTime.now();
     _selectedDay = DateTime.now();
-    /* Backend TODO: Fetch timetable data from backend (API call, database read) */
     _loadAttendance();
   }
 
   Future<void> _loadAttendance() async {
     try {
       final data = await fetchAttendanceFromBackend();
+      final presentDays =
+          data.values.where((v) => v['status'] == 'Present').length;
+      final totalDays =
+          data.values.where((v) => v['status'] != 'Holiday').length;
+
       setState(() {
         _attendanceStatus = data;
+        _attendancePercentage = (presentDays / totalDays) * 100;
         _isLoading = false;
       });
     } catch (e) {
@@ -73,11 +81,11 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
         _attendanceStatus[DateTime.utc(date.year, date.month, date.day)];
     switch (data?['status']) {
       case 'Present':
-        return Colors.green;
+        return Colors.green.shade400;
       case 'Absent':
-        return Colors.red;
+        return Colors.red.shade400;
       case 'Holiday':
-        return Colors.blue;
+        return Colors.blue.shade400;
       default:
         return Colors.transparent;
     }
@@ -86,14 +94,22 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
   List<Widget> _buildHolidayList() {
     final holidays = _attendanceStatus.entries
         .where((entry) => entry.value['status'] == 'Holiday')
-        .map((entry) => ListTile(
-              title: Text(
-                '${entry.key.toLocal()}'.split(' ')[0],
-                style: const TextStyle(fontWeight: FontWeight.bold),
+        .map((entry) => Card(
+              elevation: 2,
+              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              child: ListTile(
+                leading: Icon(Icons.event, color: Colors.blue.shade400),
+                title: Text(
+                  '${entry.key.toLocal()}'.split(' ')[0],
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  entry.value['reason']?.isNotEmpty == true
+                      ? entry.value['reason']!
+                      : 'Holiday',
+                  style: GoogleFonts.poppins(),
+                ),
               ),
-              subtitle: Text(entry.value['reason']?.isNotEmpty == true
-                  ? entry.value['reason']!
-                  : 'Holiday'),
             ))
         .toList();
     return holidays;
@@ -102,114 +118,168 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Attendance Calendar'),
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
+          : CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  expandedHeight: 200.0,
+                  floating: false,
+                  pinned: true,
+                  flexibleSpace: FlexibleSpaceBar(
+                    title: Text('My Attendance', style: GoogleFonts.poppins()),
+                    background: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withValues(alpha: 0.2),
-                            spreadRadius: 2,
-                            blurRadius: 5,
-                          ),
-                        ],
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      padding: const EdgeInsets.all(12),
-                      child: TableCalendar(
-                        firstDay: DateTime.utc(2020, 1, 1),
-                        lastDay: DateTime.utc(2030, 12, 31),
-                        focusedDay: _focusedDay,
-                        selectedDayPredicate: (day) =>
-                            isSameDay(_selectedDay, day),
-                        onDaySelected: (selectedDay, focusedDay) {
-                          setState(() {
-                            _selectedDay = selectedDay;
-                            _focusedDay = focusedDay;
-                          });
-                        },
-                        calendarStyle: const CalendarStyle(
-                          todayDecoration: BoxDecoration(
-                            color: Colors.orangeAccent,
-                            shape: BoxShape.circle,
-                          ),
+                        gradient: LinearGradient(
+                          begin: Alignment.topRight,
+                          end: Alignment.bottomLeft,
+                          colors: [Colors.blue.shade800, Colors.blue.shade500],
                         ),
-                        calendarBuilders: CalendarBuilders(
-                          defaultBuilder: (context, date, _) {
-                            final color = _getStatusColor(date);
-                            return Container(
-                              margin: const EdgeInsets.all(6.0),
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '${_attendancePercentage.toStringAsFixed(1)}%',
+                              style: GoogleFonts.poppins(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                '${date.day}',
-                                style: TextStyle(
-                                  color: color == Colors.transparent
-                                      ? Colors.black
-                                      : Colors.white,
+                            ),
+                            Text(
+                              'Attendance Rate',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: TableCalendar(
+                              firstDay: DateTime.utc(2020, 1, 1),
+                              lastDay: DateTime.utc(2030, 12, 31),
+                              focusedDay: _focusedDay,
+                              selectedDayPredicate: (day) =>
+                                  isSameDay(_selectedDay, day),
+                              onDaySelected: (selectedDay, focusedDay) {
+                                setState(() {
+                                  _selectedDay = selectedDay;
+                                  _focusedDay = focusedDay;
+                                });
+                              },
+                              calendarStyle: CalendarStyle(
+                                todayDecoration: BoxDecoration(
+                                  color: Colors.blue.shade300,
+                                  shape: BoxShape.circle,
+                                ),
+                                selectedDecoration: BoxDecoration(
+                                  color: Colors.blue.shade600,
+                                  shape: BoxShape.circle,
                                 ),
                               ),
-                            );
-                          },
-                          selectedBuilder: (context, date, _) {
-                            return Container(
-                              margin: const EdgeInsets.all(6.0),
-                              decoration: const BoxDecoration(
-                                color: Colors.orange,
-                                shape: BoxShape.circle,
+                              headerStyle: HeaderStyle(
+                                titleTextStyle: GoogleFonts.poppins(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                formatButtonTextStyle: GoogleFonts.poppins(),
                               ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                '${date.day}',
-                                style: const TextStyle(color: Colors.white),
+                              calendarBuilders: CalendarBuilders(
+                                defaultBuilder: (context, date, _) {
+                                  final color = _getStatusColor(date);
+                                  return Container(
+                                    margin: const EdgeInsets.all(6.0),
+                                    decoration: BoxDecoration(
+                                      color: color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      '${date.day}',
+                                      style: GoogleFonts.poppins(
+                                        color: color == Colors.transparent
+                                            ? Colors.black
+                                            : Colors.white,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                            );
-                          },
-                        ),
-                      ),
+                            ),
+                          ),
+                        ).animate().fadeIn().slideY(),
+                        const SizedBox(height: 20),
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Status Legend',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                const LegendRow(),
+                              ],
+                            ),
+                          ),
+                        ).animate().fadeIn().slideY(delay: 200.ms),
+                        const SizedBox(height: 20),
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Upcoming Holidays',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                ..._buildHolidayList(),
+                              ],
+                            ),
+                          ),
+                        ).animate().fadeIn().slideY(delay: 400.ms),
+                      ],
                     ),
-                    const SizedBox(height: 20),
-                    const LegendRow(),
-                    const Divider(),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8.0),
-                      child: Text(
-                        'List of Holidays:',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      padding: const EdgeInsets.all(8),
-                      height: 300,
-                      child: ListView(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: _buildHolidayList(),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
     );
   }
@@ -220,16 +290,13 @@ class LegendRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(12.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          LegendItem(color: Colors.green, label: 'Present'),
-          LegendItem(color: Colors.red, label: 'Absent'),
-          LegendItem(color: Colors.blue, label: 'Holiday'),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        LegendItem(color: Colors.green.shade400, label: 'Present'),
+        LegendItem(color: Colors.red.shade400, label: 'Absent'),
+        LegendItem(color: Colors.blue.shade400, label: 'Holiday'),
+      ],
     );
   }
 }
@@ -253,7 +320,10 @@ class LegendItem extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Text(label),
+        Text(
+          label,
+          style: GoogleFonts.poppins(),
+        ),
       ],
     );
   }
