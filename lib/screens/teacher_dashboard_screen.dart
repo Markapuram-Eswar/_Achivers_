@@ -188,7 +188,22 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           },
         ),
 
-        // Second Row
+        // Second Row - Send Message
+        _buildActionCard(
+          'Send Message',
+          Icons.message,
+          Colors.blue[400]!,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SendMessageScreen(),
+              ),
+            );
+          },
+        ),
+        
+        // Third Row - Schedule Event
         _buildActionCard(
           'Schedule Event',
           Icons.event_available,

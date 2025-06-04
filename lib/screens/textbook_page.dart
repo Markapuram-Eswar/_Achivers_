@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'dart:async';
 
 void main() => runApp(
       MaterialApp(
@@ -26,7 +27,7 @@ class TextbookPage extends StatefulWidget {
 
 class _TextbookPageState extends State<TextbookPage> {
   late Future<Map<String, dynamic>> _textbookData;
-  final FlutterTts _flutterTts = FlutterTts();
+  late FlutterTts _flutterTts;
   List<Map<String, dynamic>> _voices = [];
   String? _selectedVoice;
   int? _currentlySpeakingIndex;
@@ -34,6 +35,7 @@ class _TextbookPageState extends State<TextbookPage> {
   @override
   void initState() {
     super.initState();
+    _flutterTts = FlutterTts();
     _textbookData = fetchTextbookData(widget.subjectId, widget.topicId);
     _initTts();
   }
@@ -125,6 +127,7 @@ class _TextbookPageState extends State<TextbookPage> {
 
   Future<void> _speak(String text, int index) async {
     try {
+      // If already speaking this text, stop speaking
       if (_currentlySpeakingIndex == index) {
         await _flutterTts.stop();
         if (mounted) {
@@ -132,33 +135,59 @@ class _TextbookPageState extends State<TextbookPage> {
             _currentlySpeakingIndex = null;
           });
         }
-      } else {
-        if (_selectedVoice != null && _voices.isNotEmpty) {
-          final voice = _voices.firstWhere(
-            (v) => v['name'] == _selectedVoice,
-            orElse: () => _voices[0],
-          );
-          await _flutterTts.setVoice({
-            'name': voice['name'] as String? ?? _selectedVoice!,
-            'locale': voice['locale'] as String? ?? 'en-US',
-          });
-          await _flutterTts.speak(text);
-          if (mounted) {
-            setState(() {
-              _currentlySpeakingIndex = index;
-            });
-          }
-        } else if (mounted) {
+        return;
+      }
+
+      // If no voices are available, show error
+      if (_voices.isEmpty) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No voice available')),
+            const SnackBar(
+              content: Text('No voices available for text-to-speech'),
+              duration: Duration(seconds: 2),
+            ),
           );
         }
+        return;
       }
+
+      // Get the selected voice or default to first available
+      final voice = _selectedVoice != null
+          ? _voices.firstWhere(
+              (v) => v['name'] == _selectedVoice,
+              orElse: () => _voices.first,
+            )
+          : _voices.first;
+
+      // Set the voice and speak
+      await _flutterTts.setVoice({
+        'name': voice['name'] as String? ?? 'default',
+        'locale': voice['locale'] as String? ?? 'en-US',
+      });
+
+      // Update UI to show which text is being spoken
+      if (mounted) {
+        setState(() {
+          _currentlySpeakingIndex = index;
+        });
+      }
+
+      // Start speaking
+      await _flutterTts.speak(text);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('TTS Error: $e')),
+          SnackBar(
+            content: Text('Error with text-to-speech: ${e.toString()}'),
+            duration: const Duration(seconds: 3),
+          ),
         );
+        // Reset speaking state on error
+        if (mounted) {
+          setState(() {
+            _currentlySpeakingIndex = null;
+          });
+        }
       }
     }
   }
@@ -176,6 +205,7 @@ class _TextbookPageState extends State<TextbookPage> {
   @override
   void dispose() {
     _flutterTts.stop();
+    _flutterTts = FlutterTts();
     super.dispose();
   }
 
