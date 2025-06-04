@@ -21,16 +21,21 @@ class Learner {
 }
 
 class SubjectReport {
+ 
   final String name;
   final double percent;
   final IconData icon;
   final Color color;
+  final DateTime date;
 
-  SubjectReport(
-      {required this.name,
-      required this.percent,
-      required this.icon,
-      required this.color});
+  SubjectReport({
+   
+    required this.name,
+    required this.percent,
+    required this.icon,
+    required this.color,
+    required this.date,
+  });
 }
 
 class Achievement {
@@ -85,4 +90,19 @@ class UserData {
     required this.qaStats,
     required this.overviewItems,
   });
+  UserData clone() {
+    return UserData(
+      user: user,
+      learners: List<Learner>.from(learners),
+      reports: List<SubjectReport>.from(reports),
+      achievements: List<Achievement>.from(achievements),
+      progressList: List<SubjectProgress>.from(progressList),
+      qaStats: QAStats(
+        questions: qaStats.questions,
+        answers: qaStats.answers,
+        likes: qaStats.likes,
+      ),
+      overviewItems: List<OverviewItem>.from(overviewItems),
+    );
+  }
 }

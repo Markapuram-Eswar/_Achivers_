@@ -27,9 +27,14 @@ class DataService {
             name: 'AI',
             percent: 85.6,
             icon: Icons.computer,
-            color: Colors.green),
+            color: Colors.green,
+            date: DateTime.now()),
         SubjectReport(
-            name: 'DSA', percent: 72.3, icon: Icons.code, color: Colors.orange),
+            name: 'DSA',
+            percent: 72.3,
+            icon: Icons.code,
+            color: Colors.orange,
+            date: DateTime.now()),
       ],
       achievements: [
         Achievement(title: 'Quiz - 1', color: Colors.blue),

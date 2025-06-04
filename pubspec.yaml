@@ -59,6 +59,9 @@ dependencies:
   url_launcher: ^6.2.5
   firebase_storage: ^12.4.6
   shimmer: ^3.0.0
+  pdf: ^3.11.3
+  printing: ^5.14.2
+  firebase_messaging: ^15.2.6
 
 dev_dependencies:
   flutter_test:

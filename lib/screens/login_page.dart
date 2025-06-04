@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../services/auth_service.dart';
 import 'register_page.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -16,6 +18,70 @@ class _LoginPageState extends State<LoginPage> {
   final _idController = TextEditingController();
   bool _isLoading = false;
   int _selectedRole = 0; // 0: Student, 1: Teacher, 2: Parent
+
+  @override
+  void initState() {
+    super.initState();
+    // Set the orientation to portrait only
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
+
+  @override
+  void dispose() {
+    _idController.dispose();
+    super.dispose();
+  }
+
+  Future<void> saveFcmTokenToFirestore(
+      String uid, String name, String? rollNumber) async {
+    try {
+      FirebaseMessaging messaging = FirebaseMessaging.instance;
+      String? token = await messaging.getToken();
+
+      if (token != null && uid.isNotEmpty) {
+        Map<String, dynamic> userData = {
+          'name': name,
+          'fcmToken': token,
+          'lastLogin': FieldValue.serverTimestamp(),
+        };
+
+        // Add role-specific data
+        switch (_selectedRole) {
+          case 0: // Student
+            userData.addAll({
+              'role': 'student',
+              'rollNumber': rollNumber ?? _idController.text.trim(),
+              'class': 'Class 1', // Update as needed
+              'section': 'A',
+            });
+            break;
+          case 1: // Teacher
+            userData.addAll({
+              'role': 'teacher',
+              'employeeId': _idController.text.trim(),
+            });
+            break;
+          case 2: // Parent
+            userData.addAll({
+              'role': 'parent',
+              'childRollNumber': _idController.text.trim(),
+            });
+            break;
+        }
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .set(userData, SetOptions(merge: true));
+      }
+    } catch (e) {
+      print('Error saving FCM token: $e');
+      // Don't throw error here as login should still succeed
+    }
+  }
 
   Widget _buildRoleRadio(int index, String title) {
     return ChoiceChip(
@@ -40,12 +106,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  @override
-  void dispose() {
-    _idController.dispose();
-    super.dispose();
-  }
-
   String _getRoleName() {
     switch (_selectedRole) {
       case 0:
@@ -55,7 +115,7 @@ class _LoginPageState extends State<LoginPage> {
       case 2:
         return 'Parent';
       default:
-        return '';
+        return 'User';
     }
   }
 
@@ -76,6 +136,26 @@ class _LoginPageState extends State<LoginPage> {
     if (value == null || value.isEmpty) {
       return 'Please enter ${_getIdFieldLabel().toLowerCase()}';
     }
+
+    // Add specific validation based on role
+    switch (_selectedRole) {
+      case 0: // Student roll number validation
+        if (value.length < 2) {
+          return 'Roll number must be at least 2 characters';
+        }
+        break;
+      case 1: // Teacher employee ID validation
+        if (value.length < 3) {
+          return 'Employee ID must be at least 3 characters';
+        }
+        break;
+      case 2: // Parent child roll number validation
+        if (value.length < 2) {
+          return 'Child roll number must be at least 2 characters';
+        }
+        break;
+    }
+
     return null;
   }
 
@@ -88,44 +168,81 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final authService = AuthService();
+      final inputId = _idController.text.trim();
+
+      Map<String, dynamic>? userData;
+      String uid = '';
+      String name = '';
+      String? rollNumber;
 
       switch (_selectedRole) {
         case 0: // Student
-          /* Backend TODO: Authenticate student login (API call, session/token management) */
-          await authService.loginStudent(_idController.text.trim());
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/welcome_page');
-          }
+          userData = await authService.loginStudent(inputId);
           break;
-
         case 1: // Teacher
-          /* Backend TODO: Authenticate teacher login (API call, session/token management) */
-          await authService.loginTeacher(_idController.text.trim());
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/teacher-dashboard');
-            print(mounted);
-          }
+          userData = await authService.loginTeacher(inputId);
           break;
-
         case 2: // Parent
-          /* Backend TODO: Authenticate parent login (API call, session/token management) */
-          await authService.loginParent(_idController.text.trim());
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, '/parent-dashboard');
-          }
+          userData = await authService.loginParent(inputId);
           break;
-
-        default:
-          throw 'Invalid role selected';
       }
 
-      Fluttertoast.showToast(msg: 'Logged in as [1m${_getRoleName()}');
+      if (userData != null) {
+        uid = userData['uid']?.toString() ?? '';
+        name = userData['name']?.toString() ?? _getRoleName();
+        rollNumber = userData['rollNumber']?.toString();
+
+        if (uid.isEmpty) {
+          throw Exception('Invalid user credentials');
+        }
+
+        // Save FCM token to Firestore
+        await saveFcmTokenToFirestore(uid, name, rollNumber);
+
+        // Show success message
+        Fluttertoast.showToast(
+          msg: 'Logged in successfully as $name',
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+        );
+
+        // Navigate to appropriate dashboard
+        if (mounted) {
+          switch (_selectedRole) {
+            case 0: // Student
+              Navigator.pushReplacementNamed(context, '/welcome_page');
+              break;
+            case 1: // Teacher
+              Navigator.pushReplacementNamed(context, '/teacher-dashboard');
+              break;
+            case 2: // Parent
+              Navigator.pushReplacementNamed(context, '/parent-dashboard');
+              break;
+          }
+        }
+      } else {
+        throw Exception('Login failed: Invalid credentials');
+      }
     } catch (e) {
-      /* Backend TODO: Handle login error responses from backend */
+      String errorMessage = 'Login failed';
+
+      if (e.toString().contains('network')) {
+        errorMessage = 'Network error. Please check your connection.';
+      } else if (e.toString().contains('not found')) {
+        errorMessage =
+            'User not found. Please check your ${_getIdFieldLabel().toLowerCase()}.';
+      } else if (e.toString().contains('Invalid')) {
+        errorMessage = 'Invalid credentials. Please try again.';
+      } else {
+        errorMessage =
+            'Login failed: ${e.toString().replaceAll('Exception: ', '')}';
+      }
+
       Fluttertoast.showToast(
-        msg: 'Login failed: $e',
+        msg: errorMessage,
         backgroundColor: Colors.red,
         textColor: Colors.white,
+        toastLength: Toast.LENGTH_LONG,
       );
     } finally {
       if (mounted) {
@@ -134,16 +251,6 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Set the orientation to portrait only
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
   }
 
   @override
@@ -163,6 +270,21 @@ class _LoginPageState extends State<LoginPage> {
                   'assets/images/logo.png',
                   width: MediaQuery.of(context).size.width * 0.4,
                   fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      width: MediaQuery.of(context).size.width * 0.4,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.school,
+                        size: 50,
+                        color: Colors.grey,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
                 const Text(
@@ -238,11 +360,12 @@ class _LoginPageState extends State<LoginPage> {
                                   border: const UnderlineInputBorder(),
                                   contentPadding:
                                       const EdgeInsets.symmetric(vertical: 8),
-                                  prefixIcon:
-                                      const Icon(Icons.person_outline),
+                                  prefixIcon: const Icon(Icons.person_outline),
                                 ),
                                 validator: _validateId,
                                 enabled: !_isLoading,
+                                textInputAction: TextInputAction.done,
+                                onFieldSubmitted: (_) => _login(),
                               ),
                               const SizedBox(height: 24),
                             ],
