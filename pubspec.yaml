@@ -61,6 +61,7 @@ dependencies:
   open_filex: ^4.3.2
   syncfusion_flutter_pdfviewer: ^29.2.7
   cached_network_image: ^3.4.1
+  font_awesome_flutter: ^10.7.0
 
 dev_dependencies:
   flutter_test:

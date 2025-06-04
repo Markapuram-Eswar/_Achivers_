@@ -21,8 +21,7 @@ class PracticePageState extends State<PracticePage> {
       'subtitle': 'Algebra, Geometry, Calculus',
       'icon': 'https://img.icons8.com/isometric/50/hygrometer.png',
       'color': Colors.blue,
-      'progress': 0.75,
-      'questions': 120,
+      'chapters': 120, // <-- changed
       'completed': 90,
     },
     {
@@ -30,8 +29,7 @@ class PracticePageState extends State<PracticePage> {
       'subtitle': 'Physics, Chemistry, Biology',
       'icon': 'https://img.icons8.com/isometric/50/microscope.png',
       'color': Colors.green,
-      'progress': 0.60,
-      'questions': 150,
+      'chapters': 150, // <-- changed
       'completed': 90,
     },
     {
@@ -39,8 +37,7 @@ class PracticePageState extends State<PracticePage> {
       'subtitle': 'Grammar, Vocabulary, Literature',
       'icon': 'https://img.icons8.com/isometric/50/book-shelf.png',
       'color': Colors.purple,
-      'progress': 0.85,
-      'questions': 100,
+      'chapters': 100, // <-- changed
       'completed': 85,
     },
     {
@@ -48,8 +45,7 @@ class PracticePageState extends State<PracticePage> {
       'subtitle': 'History, Geography, Civics',
       'icon': 'https://img.icons8.com/isometric/50/world-map.png',
       'color': Colors.orange,
-      'progress': 0.45,
-      'questions': 80,
+      'chapters': 80, // <-- changed
       'completed': 36,
     },
     {
@@ -57,8 +53,7 @@ class PracticePageState extends State<PracticePage> {
       'subtitle': 'Grammar, Literature, Comprehension',
       'icon': 'https://img.icons8.com/isometric/50/literature.png',
       'color': Colors.pink,
-      'progress': 0.55,
-      'questions': 90,
+      'chapters': 90, // <-- changed
       'completed': 50,
     },
     {
@@ -66,33 +61,8 @@ class PracticePageState extends State<PracticePage> {
       'subtitle': 'Grammar, Literature, Vocabulary',
       'icon': 'https://img.icons8.com/isometric/50/book-reading.png',
       'color': Colors.amber,
-      'progress': 0.40,
-      'questions': 85,
+      'chapters': 85, // <-- changed
       'completed': 34,
-    },
-  ];
-
-  final List<Map<String, dynamic>> _recentPractice = [
-    {
-      'title': 'Algebra Quiz',
-      'subject': 'Mathematics',
-      'date': 'Yesterday',
-      'score': '85%',
-      'color': Colors.blue,
-    },
-    {
-      'title': 'Physics Formulas',
-      'subject': 'Science',
-      'date': '2 days ago',
-      'score': '92%',
-      'color': Colors.green,
-    },
-    {
-      'title': 'Grammar Test',
-      'subject': 'English',
-      'date': '3 days ago',
-      'score': '78%',
-      'color': Colors.purple,
     },
   ];
 
@@ -238,7 +208,9 @@ class PracticePageState extends State<PracticePage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           LinearProgressIndicator(
-                            value: item['progress'],
+                            value: (item['chapters'] > 0)
+                                ? (item['completed'] / item['chapters'])
+                                : 0.0,
                             backgroundColor: Colors.grey[200],
                             valueColor:
                                 AlwaysStoppedAnimation<Color>(item['color']),
@@ -247,7 +219,7 @@ class PracticePageState extends State<PracticePage> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '${item['completed']} / ${item['questions']} questions completed',
+                            '${item['completed']} / ${item['chapters']} chapters completed',
                             style: const TextStyle(
                               fontSize: 12,
                               color: Colors.grey,
