@@ -53,7 +53,8 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
     try {
       // TODO: Replace with actual studentId (e.g., from auth)
       final studentId = 'STUDENT_ID_HERE';
-      final records = await _attendanceService.getStudentAttendanceRecords(studentId);
+      final records =
+          await _attendanceService.getStudentAttendanceRecords(studentId);
 
       final Map<DateTime, String> attMap = {};
       int present = 0, absent = 0;
@@ -61,8 +62,10 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
         final dateParts = rec['date'].split('-').map(int.parse).toList();
         final date = DateTime.utc(dateParts[0], dateParts[1], dateParts[2]);
         attMap[date] = rec['present'] == true ? 'Present' : 'Absent';
-        if (rec['present'] == true) present++;
-        else absent++;
+        if (rec['present'] == true)
+          present++;
+        else
+          absent++;
       }
       final total = present + absent;
       setState(() {
@@ -92,7 +95,8 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
       children: [
         Text(
           '$value',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(
+              fontSize: 20, fontWeight: FontWeight.bold, color: color),
         ),
         Text(label, style: TextStyle(color: color)),
       ],
@@ -129,9 +133,14 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                _buildSummaryItem('Present', _presentCount, Colors.green),
-                                _buildSummaryItem('Absent', _absentCount, Colors.red),
-                                _buildSummaryItem('Attendance %', _attendancePercentage.toStringAsFixed(1), Colors.blue),
+                                _buildSummaryItem(
+                                    'Present', _presentCount, Colors.green),
+                                _buildSummaryItem(
+                                    'Absent', _absentCount, Colors.red),
+                                _buildSummaryItem(
+                                    'Attendance %',
+                                    _attendancePercentage.toStringAsFixed(1),
+                                    Colors.blue),
                               ],
                             ),
                           ),
@@ -176,7 +185,7 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                 formatButtonVisible: false,
                                 titleCentered: true,
                               ),
-                              calendarFormat: CalendarForma
+                              calendarFormat: CalendarFormat.month,
                               calendarBuilders: CalendarBuilders(
                                 defaultBuilder: (context, date, _) {
                                   final color = _getStatusColor(date);
@@ -207,7 +216,8 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                     alignment: Alignment.center,
                                     child: Text(
                                       '${date.day}',
-                                      style: const TextStyle(color: Colors.white),
+                                      style:
+                                          const TextStyle(color: Colors.white),
                                     ),
                                   );
                                 },
@@ -229,7 +239,8 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                   children: [
                     const Text(
                       'Public Holidays',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),
                     ListView.separated(

@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 
 // Import Firebase Storage
-import 'package:achiver_app/dout_service.dart';
+import 'dout_service.dart';
 
 class DoubtsPage extends StatefulWidget {
   const DoubtsPage({super.key});
