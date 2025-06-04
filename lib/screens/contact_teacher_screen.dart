@@ -132,6 +132,7 @@ class ContactTeacherScreen extends StatelessWidget {
                       _buildContactButton(
                         icon: Icons.connect_without_contact,
                         label: 'WhatsApp',
+                        backgroundColor: Color(0xFF25D366), // WhatsApp green color
                         onPressed: () async {
                           String phoneNumber =
                               teacher['phone']!; // e.g., '918106645476'
@@ -162,13 +163,14 @@ class ContactTeacherScreen extends StatelessWidget {
     required IconData icon,
     required String label,
     required VoidCallback onPressed,
+    Color? backgroundColor,
   }) {
     return ElevatedButton.icon(
       icon: Icon(icon, size: 20),
       label: Text(label),
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blue[900],
+        backgroundColor: backgroundColor ?? Colors.blue[900],
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 12),
       ),

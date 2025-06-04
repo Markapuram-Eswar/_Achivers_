@@ -1,4 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 
 class McqPage extends StatefulWidget {
   final Map<String, dynamic> subjectData;
@@ -129,19 +135,260 @@ class McqPageState extends State<McqPage> {
     });
   }
 
-  void _downloadReport() async {
-    // In a real app, this would generate and download a PDF report
-    // For now, we'll just show a snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Downloading report...')),
+  Future<void> _downloadReport() async {
+    // Show loading indicator
+    if (!mounted) return;
+
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(content: Text('Generating report...')),
     );
 
-    // Simulate download delay
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      // Create a PDF document
+      final pdf = pw.Document();
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Report downloaded successfully!')),
+      // Add a page to the PDF
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (pw.Context context) {
+            return [
+              // Header
+              pw.Header(
+                level: 0,
+                child: pw.Text(
+                  '${widget.topicData['title']} Quiz Report',
+                  style: pw.TextStyle(
+                    fontSize: 24,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromInt(widget.subjectData['color'].value),
+                  ),
+                ),
+              ),
+
+              pw.SizedBox(height: 20),
+
+              // Score Summary
+              pw.Container(
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Quiz Summary',
+                      style: pw.TextStyle(
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      'Score: $_score/${_questions.length} (${(_score / _questions.length * 100).toStringAsFixed(1)}%)',
+                      style: const pw.TextStyle(fontSize: 16),
+                    ),
+                    pw.Text(
+                      'Date: ${DateTime.now().toString().split('.')[0]}',
+                      style: const pw.TextStyle(
+                          fontSize: 14, color: PdfColors.grey600),
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 30),
+
+              // Questions and Answers
+              ..._questions.asMap().entries.map((entry) {
+                final index = entry.key;
+                final question = entry.value;
+                final isCorrect =
+                    _selectedAnswers[index] == question['correctAnswer'];
+                final userAnswer = _selectedAnswers[index];
+
+                return pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 20),
+                  padding: const pw.EdgeInsets.all(12),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(
+                      color: isCorrect ? PdfColors.green : PdfColors.red,
+                      width: 1,
+                    ),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      // Question
+                      pw.Text(
+                        '${index + 1}. ${question['question']}',
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+
+                      pw.SizedBox(height: 8),
+
+                      // Options
+                      ...question['options'].asMap().entries.map((option) {
+                        final optionIndex = option.key;
+                        final optionText = option.value;
+                        final isSelected = userAnswer == optionIndex;
+                        final isCorrectOption =
+                            question['correctAnswer'] == optionIndex;
+
+                        return pw.Container(
+                          margin: const pw.EdgeInsets.only(bottom: 4),
+                          child: pw.Row(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Container(
+                                width: 16,
+                                height: 16,
+                                margin:
+                                    const pw.EdgeInsets.only(right: 8, top: 2),
+                                decoration: pw.BoxDecoration(
+                                  shape: pw.BoxShape.circle,
+                                  border: pw.Border.all(
+                                    color: isCorrectOption
+                                        ? PdfColors.green
+                                        : isSelected
+                                            ? PdfColors.red
+                                            : PdfColors.grey,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: isCorrectOption
+                                    ? pw.Center(
+                                        child: pw.Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: const pw.BoxDecoration(
+                                            color: PdfColors.green,
+                                            shape: pw.BoxShape.circle,
+                                          ),
+                                        ),
+                                      )
+                                    : isSelected
+                                        ? pw.Center(
+                                            child: pw.Container(
+                                              width: 8,
+                                              height: 8,
+                                              decoration:
+                                                  const pw.BoxDecoration(
+                                                color: PdfColors.red,
+                                                shape: pw.BoxShape.circle,
+                                              ),
+                                            ),
+                                          )
+                                        : null,
+                              ),
+                              pw.Expanded(
+                                child: pw.Text(
+                                  optionText,
+                                  style: pw.TextStyle(
+                                    fontSize: 12,
+                                    color: isCorrectOption
+                                        ? PdfColors.green
+                                        : isSelected
+                                            ? PdfColors.red
+                                            : PdfColors.black,
+                                    fontWeight: isCorrectOption || isSelected
+                                        ? pw.FontWeight.bold
+                                        : pw.FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+
+                      // Explanation
+                      if (!isCorrect) ...[
+                        pw.SizedBox(height: 8),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.all(8),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.grey100,
+                            borderRadius: const pw.BorderRadius.all(
+                                pw.Radius.circular(4)),
+                          ),
+                          child: pw.Text(
+                            'Explanation: ${question['explanation']}',
+                            style: pw.TextStyle(
+                              fontSize: 11,
+                              color: PdfColors.grey800,
+                              fontStyle: pw.FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      pw.SizedBox(height: 8),
+
+                      // Status
+                      pw.Text(
+                        isCorrect ? 'Correct!' : 'Incorrect',
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          color: isCorrect ? PdfColors.green : PdfColors.red,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+
+              // Footer
+              pw.Footer(
+                title: pw.Text(
+                  'Generated by Achievers Learning App',
+                  style:
+                      const pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+                ),
+              ),
+            ];
+          },
+        ),
+      );
+
+      // Save the PDF to a temporary file
+      final output = await getTemporaryDirectory();
+      final file = File('${output.path}/quiz_report.pdf');
+      await file.writeAsBytes(await pdf.save());
+
+      if (!mounted) return;
+
+      // Show success message
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('Report generated successfully!')),
+      );
+
+      // Open the file with the device's default PDF viewer
+      await OpenFilex.open(file.path);
+
+      // Option to share the file
+      if (await file.exists()) {
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text:
+              'My quiz results from ${widget.topicData['title']} - Score: $_score/${_questions.length}',
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Failed to generate report: $e')),
       );
     }
   }

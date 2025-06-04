@@ -60,6 +60,8 @@ dependencies:
   firebase_storage: ^12.4.6
   open_filex: ^4.3.2
   syncfusion_flutter_pdfviewer: ^29.2.7
+  pdf: ^3.10.7
+  share_plus: ^7.2.1
 
 dev_dependencies:
   flutter_test:
@@ -87,7 +89,7 @@ flutter:
     - assets/videos/park_theme.mp4
     - assets/images/logo.png
     - assets/images/avatar-girl-svgrepo-com.svg
-    - assets/videos/intro.mp4
+    - assets/videos/intro1.mp4
     - assets/videos/tr1.mp4
     - assets/videos/tr2.mp4
     - assets/videos/tr10.mp4
