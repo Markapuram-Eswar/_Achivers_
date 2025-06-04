@@ -42,31 +42,39 @@ class _TextbookPageState extends State<TextbookPage> {
     try {
       await _flutterTts.setPitch(1.0);
       await _flutterTts.setSpeechRate(0.5);
-      _voices = (await _flutterTts.getVoices)
-          .cast<Map<String, dynamic>>()
-          .where((v) => v['locale'].toString().startsWith('en'))
-          .take(4)
-          .toList();
+      final voices = (await _flutterTts.getVoices) as List<dynamic>?;
 
-      if (_voices.isNotEmpty) {
-        _selectedVoice = _voices[0]['name'];
-        await _flutterTts.setVoice({
-          'name': _selectedVoice ?? '',
-          'locale': _voices[0]['locale'] ?? ''
-        });
-      } else {
+      if (voices != null) {
+        _voices = voices
+            .cast<Map<String, dynamic>>()
+            .where((v) => v['locale']?.toString().startsWith('en') ?? false)
+            .take(4)
+            .toList();
+      }
+
+      if (_voices.isNotEmpty && mounted) {
+        _selectedVoice = _voices[0]['name'] as String?;
+        if (_selectedVoice != null) {
+          await _flutterTts.setVoice({
+            'name': _selectedVoice!,
+            'locale': _voices[0]['locale'] as String? ?? 'en-US',
+          });
+        }
+      } else if (mounted) {
         setState(() {
           _selectedVoice = null;
         });
       }
 
-      _flutterTts.setCompletionHandler(() {
-        setState(() {
-          _currentlySpeakingIndex = null;
-        });
-      });
+      await _flutterTts.setLanguage('en-US');
 
-      setState(() {});
+      _flutterTts.setCompletionHandler(() {
+        if (mounted) {
+          setState(() {
+            _currentlySpeakingIndex = null;
+          });
+        }
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -119,20 +127,30 @@ class _TextbookPageState extends State<TextbookPage> {
     try {
       if (_currentlySpeakingIndex == index) {
         await _flutterTts.stop();
-        setState(() {
-          _currentlySpeakingIndex = null;
-        });
-      } else {
-        if (_selectedVoice != null) {
-          await _flutterTts.setVoice(Map<String, String>.from(
-              _voices.firstWhere((v) => v['name'] == _selectedVoice)));
-          await _flutterTts.speak(text);
+        if (mounted) {
           setState(() {
-            _currentlySpeakingIndex = index;
+            _currentlySpeakingIndex = null;
           });
-        } else {
+        }
+      } else {
+        if (_selectedVoice != null && _voices.isNotEmpty) {
+          final voice = _voices.firstWhere(
+            (v) => v['name'] == _selectedVoice,
+            orElse: () => _voices[0],
+          );
+          await _flutterTts.setVoice({
+            'name': voice['name'] as String? ?? _selectedVoice!,
+            'locale': voice['locale'] as String? ?? 'en-US',
+          });
+          await _flutterTts.speak(text);
+          if (mounted) {
+            setState(() {
+              _currentlySpeakingIndex = index;
+            });
+          }
+        } else if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No voice selected')),
+            const SnackBar(content: Text('No voice available')),
           );
         }
       }
@@ -146,13 +164,12 @@ class _TextbookPageState extends State<TextbookPage> {
   }
 
   String _getGifForVoice(String? voiceName) {
-    if (voiceName == null) return 'Avatars/Boy avatar.gif'; // default
+    if (voiceName == null) return 'Avatars/Boy avatar.gif';
     final lower = voiceName.toLowerCase();
     if (lower.contains('female')) return 'Avatars/Female avatar.gif';
     if (lower.contains('girl')) return 'Avatars/Girl avatar.gif';
     if (lower.contains('male')) return 'Avatars/Male avatar.gif';
     if (lower.contains('boy')) return 'Avatars/Boy avatar.gif';
-    // fallback
     return 'Avatars/Boy avatar.gif';
   }
 
@@ -274,21 +291,27 @@ class _TextbookPageState extends State<TextbookPage> {
                               items: _voices
                                   .map<DropdownMenuItem<String>>(
                                     (voice) => DropdownMenuItem<String>(
-                                      value: voice['name'],
-                                      child: Text(
-                                          voice['name'] ?? 'Unknown Voice'),
+                                      value: voice['name'] as String?,
+                                      child: Text(voice['name']?.toString() ??
+                                          'Unknown Voice'),
                                     ),
                                   )
                                   .toList(),
                               onChanged: (value) async {
+                                if (value == null) return;
                                 setState(() {
                                   _selectedVoice = value;
                                 });
                                 try {
-                                  await _flutterTts.setVoice(
-                                      Map<String, String>.from(
-                                          _voices.firstWhere(
-                                              (v) => v['name'] == value)));
+                                  final voice = _voices.firstWhere(
+                                    (v) => v['name'] == value,
+                                    orElse: () => _voices[0],
+                                  );
+                                  await _flutterTts.setVoice({
+                                    'name': voice['name'] as String? ?? value,
+                                    'locale':
+                                        voice['locale'] as String? ?? 'en-US',
+                                  });
                                 } catch (e) {
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -348,8 +371,11 @@ class _TextbookPageState extends State<TextbookPage> {
                                                     : Colors.blue[700],
                                                 size: 28,
                                               ),
-                                              onPressed: () => _speak(
-                                                  section['paragraph'], index),
+                                              onPressed: _selectedVoice != null
+                                                  ? () => _speak(
+                                                      section['paragraph'],
+                                                      index)
+                                                  : null,
                                               tooltip: isSpeaking
                                                   ? "Stop"
                                                   : "Listen",
@@ -429,7 +455,6 @@ class _TextbookPageState extends State<TextbookPage> {
                           Center(
                             child: ElevatedButton.icon(
                               onPressed: () {
-                                // TODO: Implement your get report logic or navigation here
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                       content:
