@@ -20,7 +20,9 @@ class SubjectPracticePageState extends State<SubjectPracticePage> {
     super.initState();
     /* Backend TODO: Fetch subject practice data from backend (API call, database read) */
     // Initialize topics based on the subject
-    _initializeTopics();
+    // _initializeTopics();
+    _topicsList = widget.subjectData['subtitle'];
+    print('Subject data: ${widget.subjectData}');
   }
 
   void _initializeTopics() {
@@ -276,7 +278,8 @@ class SubjectPracticePageState extends State<SubjectPracticePage> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Image.network(
-                              topic['icon'],
+                              'https://img.icons8.com/isometric/50/book-shelf.png',
+                              // topic['icon'],
                               width: 40,
                               height: 40,
                             ),
@@ -288,7 +291,7 @@ class SubjectPracticePageState extends State<SubjectPracticePage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  topic['title'],
+                                  topic['name'],
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -296,7 +299,8 @@ class SubjectPracticePageState extends State<SubjectPracticePage> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${topic['questions']} questions • ${topic['difficulty']} difficulty',
+                                  " ",
+                                  // '${topic['questions']} questions • ${topic['difficulty']} difficulty',
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                   ),
@@ -386,16 +390,16 @@ class SubjectPracticePageState extends State<SubjectPracticePage> {
                 subtitle: const Text('Study the topic in detail'),
                 onTap: () {
                   // Debug print to inspect the data structure
-                  print('Subject data: ${widget.subjectData}');
-                  print('Topic data: $topic');
-                  
+                  print('Subject data: ${widget.subjectData['id']}');
+                  print('Topic data: ${topic['id']}');
+
                   Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => TextbookPage(
-                        subjectId: widget.subjectData['id']?.toString() ?? '',
-                        topicId: topic['id']?.toString() ?? '',
+                        subjectData: widget.subjectData,
+                        topicData: topic,
                       ),
                     ),
                   );

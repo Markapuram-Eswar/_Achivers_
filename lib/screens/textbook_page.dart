@@ -1,94 +1,106 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import '../services/text_book_service.dart';
+import '../services/ProfileService.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
+
 class TextbookPage extends StatefulWidget {
-  final String subjectId;
-  final String topicId;
+  final Map<String, dynamic> subjectData;
+  final Map<String, dynamic> topicData;
 
   const TextbookPage({
-    Key? key,
-    required this.subjectId,
-    required this.topicId,
-  }) : super(key: key);
+    super.key,
+    required this.subjectData,
+    required this.topicData,
+  });
+
 
   @override
   _TextbookPageState createState() => _TextbookPageState();
 }
 
 class _TextbookPageState extends State<TextbookPage> {
+  final TextBookService _textBookService = TextBookService();
+  late Future<Map<String, dynamic>> _textbookData;
+  Map<String, dynamic>? studentData;
   final FlutterTts _flutterTts = FlutterTts();
   bool _isTtsInitialized = false;
   bool _isSpeaking = false;
   int? _currentlySpeakingIndex;
+  String? errorMessage;
+  bool isLoading = true;
   double _fontSize = 16.0;
-
-  final List<Map<String, dynamic>> _content = [
-    {
-      'heading': 'Introduction to Biology',
-      'paragraph':
-          'Biology is the scientific study of life and living organisms, including their physical structure, chemical processes, molecular interactions, physiological mechanisms, development, and evolution. It encompasses multiple sub-disciplines such as microbiology, botany, zoology, and biochemistry. Modern biology is a vast field composed of many specialized disciplines that study the structure, function, growth, origin, evolution, and distribution of living organisms. The fundamental principles of modern biology include cell theory, evolution, genetics, homeostasis, and energy processing. Biologists study life at multiple levels of organization, from molecular biology of cells to the anatomy and physiology of organisms, and how species interact within ecosystems.',
-      'image':
-          'https://images.unsplash.com/photo-1532094349884-543bc11b234d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
-    },
-    {
-      'heading': 'Cell Structure and Function',
-      'paragraph':
-          'Cells are the basic structural and functional units of all living organisms. The human body contains approximately 37.2 trillion cells, each with specialized functions. There are two primary types of cells: prokaryotic cells (bacteria and archaea) and eukaryotic cells (plants, animals, fungi). Key cellular components include the nucleus (containing DNA), mitochondria (powerhouse of the cell), endoplasmic reticulum (protein and lipid synthesis), Golgi apparatus (protein modification and transport), lysosomes (digestive system), and cell membrane (selective barrier). The process of cellular respiration occurs in mitochondria, converting biochemical energy from nutrients into adenosine triphosphate (ATP), while photosynthesis in plant cells converts light energy into chemical energy stored in glucose.',
-      'image':
-          'https://images.unsplash.com/photo-1532187863485-abdbb168e042?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
-    },
-    {
-      'heading': 'Photosynthesis Process',
-      'paragraph':
-          'Photosynthesis is the biochemical process by which plants, algae, and some bacteria convert light energy, usually from the sun, into chemical energy stored in glucose. This process occurs in the chloroplasts of plant cells, specifically in the thylakoid membranes where chlorophyll pigments absorb light. The overall chemical equation is: 6CO₂ + 6H₂O + light energy → C₆H₁₂O₆ + 6O₂. Photosynthesis consists of two main stages: the light-dependent reactions (which produce ATP and NADPH) and the Calvin cycle (which produces glucose). This process is crucial for life on Earth as it produces oxygen and forms the foundation of the food chain. Factors affecting photosynthesis include light intensity, carbon dioxide concentration, temperature, and water availability.',
-      'image':
-          'https://images.unsplash.com/photo-1585011658890-be4d3ad65f1b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
-    },
-    {
-      'heading': 'Human Anatomy and Physiology',
-      'paragraph':
-          'Human anatomy is the scientific study of the structure of organisms and their parts, while physiology focuses on how those structures function. The human body is organized into several major systems: the skeletal system (206 bones providing structure and protection), muscular system (enabling movement), nervous system (brain, spinal cord, and nerves controlling body functions), cardiovascular system (heart and blood vessels circulating blood), respiratory system (lungs and airways for gas exchange), digestive system (processing food and absorbing nutrients), endocrine system (hormone production and regulation), immune system (defense against pathogens), and reproductive system. Each system works in harmony to maintain homeostasis, the body\'s ability to maintain a stable internal environment despite external changes.',
-      'image':
-          'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
-    },
-    {
-      'heading': 'Genetics and Heredity',
-      'paragraph':
-          'Genetics is the study of genes, genetic variation, and heredity in organisms. DNA (deoxyribonucleic acid) is the hereditary material in humans and almost all other organisms, containing the instructions needed for development, survival, and reproduction. The structure of DNA is a double helix, discovered by James Watson and Francis Crick in 1953. Genes are segments of DNA that encode specific proteins or functional RNA molecules. The human genome contains approximately 20,000-25,000 genes. Genetic inheritance follows Mendelian patterns, including dominant and recessive traits, codominance, and incomplete dominance. Modern genetics includes molecular genetics (studying gene structure and function), population genetics (studying genetic variation within populations), and quantitative genetics (studying complex traits influenced by multiple genes and environment).',
-      'image':
-          'https://images.unsplash.com/photo-1581093450024-af2a3d6dba5a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
-    },
-    {
-      'heading': 'Evolution and Natural Selection',
-      'paragraph':
-          'Evolution is the process by which different kinds of living organisms have developed and diversified from earlier forms during the history of Earth. Charles Darwin\'s theory of natural selection explains how evolution occurs: individuals with advantageous traits are more likely to survive and reproduce, passing those traits to future generations. Evidence for evolution comes from multiple sources including the fossil record, comparative anatomy, embryology, biogeography, and molecular biology. Key concepts include genetic variation, mutation, genetic drift, gene flow, and speciation. Evolution explains both the unity (shared characteristics due to common ancestry) and diversity (adaptations to different environments) of life on Earth. Modern evolutionary synthesis combines Darwinian evolution with Mendelian genetics, showing how genetic mutations provide the variation upon which natural selection acts.',
-      'image':
-          'https://images.unsplash.com/photo-1610337673044-720471f83677?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
-    },
-    {
-      'heading': 'Ecology and Ecosystems',
-      'paragraph':
-          'Ecology is the study of interactions among organisms and between organisms and their physical environment. An ecosystem consists of all the organisms in a particular area along with the nonliving components with which they interact. Key ecological concepts include energy flow (movement of energy through food chains and webs), nutrient cycling (recycling of elements like carbon and nitrogen), and ecological succession (predictable changes in species composition over time). Biomes are large-scale ecological communities characterized by climate and dominant vegetation, such as tropical rainforests, deserts, grasslands, and tundras. Human impacts on ecosystems include habitat destruction, pollution, climate change, and introduction of invasive species. Conservation biology seeks to protect biodiversity and maintain ecosystem services that humans depend on, such as clean air, water, and soil fertility.',
-      'image':
-          'https://images.unsplash.com/photo-1476231682828-37e95bcad36e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
-    },
-    {
-      'heading': 'Microbiology and Immunology',
-      'paragraph':
-          'Microbiology is the study of microscopic organisms, including bacteria, viruses, archaea, fungi, and protists. These microorganisms play crucial roles in nutrient cycling, biodegradation, climate change, food spoilage, and human health. The human body hosts trillions of microorganisms, collectively known as the microbiome, which are essential for digestion, vitamin production, and protection against pathogens. Immunology is the study of the immune system, which defends the body against infectious organisms and other invaders. The immune system consists of innate (nonspecific) and adaptive (specific) components. Vaccination works by stimulating the immune system to recognize and combat pathogens. Understanding microbiology and immunology is crucial for developing antibiotics, vaccines, and treatments for infectious diseases, as well as for maintaining public health through sanitation and food safety measures.',
-      'image':
-          'https://images.unsplash.com/photo-1575505586569-646b2ca898fc?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
+    print('Textbook Page ${widget.subjectData}');
+    print('Textbook Page ${widget.topicData}');
+    _loadData();
     _initTts();
   }
+
+  Future<void> _loadData() async {
+    try {
+      // Fetch student profile first
+      final profileData = await ProfileService().getStudentProfile();
+      setState(() => studentData = profileData);
+      
+      // Then fetch practice items using school/class from profile
+      await _fetchTextbookData();
+    } catch (e) {
+      Fluttertoast.showToast(msg: 'Failed to load data: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _fetchTextbookData() async {
+    // For now, use hardcoded school and grade, or get from widget.subjectData if available
+    final school = studentData?['school']?.toString() ?? '';
+    final grade = studentData?['class']?.toString() ?? '';
+    final subject = widget.subjectData['title']?.toString() ?? '';
+    final topic = widget.topicData['name']?.toString() ?? '';
+
+    print('Student school: $school, class: $grade');
+
+    try {
+      final content = await _textBookService.getTextbookContent(
+        school: school,
+        grade: grade,
+        subject: subject,
+        topic: topic,
+      );
+
+      print('Content: $content');
+
+      if (content == null || content.isEmpty) {
+        setState(() => errorMessage = 'No content found for your class');
+        return;
+      }
+
+      // Wrap the Firestore content in the structure expected by the UI
+      setState(() => _textbookData = Future.value({
+        "subjectData": {
+          "id": subject,
+          "name": subject,
+          "color": widget.subjectData["color"] ?? const Color(0xFF2196F3),
+        },
+        "topicData": {
+          "id": topic,
+          "title": topic,
+          "icon": widget.topicData["icon"] ?? "",
+          "content": content["content"] ?? [],
+        }
+      }));
+    } catch (e) {
+      setState(() => errorMessage = 'Failed to fetch textbook data: $e');
+    }
+  }
+
 
   Future<void> _initTts() async {
     try {
@@ -178,122 +190,56 @@ class _TextbookPageState extends State<TextbookPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Biology Textbook',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: Colors.green[700],
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.text_decrease),
-            onPressed: () {
-              setState(() {
-                _fontSize = (_fontSize - 1).clamp(12.0, 24.0);
-              });
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.text_increase),
-            onPressed: () {
-              setState(() {
-                _fontSize = (_fontSize + 1).clamp(12.0, 24.0);
-              });
-            },
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.green[50]!, Colors.white],
-          ),
-        ),
-        child: ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
-          itemCount: _content.length,
-          itemBuilder: (context, index) {
-            final section = _content[index];
-            final isSpeaking = _currentlySpeakingIndex == index;
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _textbookData,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
+        } else if (snapshot.hasError) {
+          return Scaffold(
+              body: Center(child: Text('Error: ${snapshot.error}')));
+        } else {
+          final data = snapshot.data;
+          if (data == null || data['subjectData'] == null || data['topicData'] == null) {
+            return const Scaffold(
+              body: Center(child: Text('No textbook data found.')),
+            );
+          }
+          final subjectData = data['subjectData'] ?? {};
+          final topicData = data['topicData'] ?? {};
+          final List<dynamic> content = topicData['content'] ?? [];
 
-            return Card(
-              margin:
-                  const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15.0),
+          return Scaffold(
+            appBar: AppBar(
+              title: Text(
+                topicData['title'],
+                style: const TextStyle(color: Colors.white),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (section['image'] != null)
-                    Hero(
-                      tag: 'image_$index',
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(15.0)),
-                        child: Stack(
-                          children: [
-                            Image.network(
-                              section['image'],
-                              height: 200,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Container(
-                                  height: 200,
-                                  color: Colors.grey[200],
-                                  child: Center(
-                                    child: CircularProgressIndicator(
-                                      value:
-                                          loadingProgress.expectedTotalBytes !=
-                                                  null
-                                              ? loadingProgress
-                                                      .cumulativeBytesLoaded /
-                                                  loadingProgress
-                                                      .expectedTotalBytes!
-                                              : null,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.transparent,
-                                      Colors.black.withOpacity(0.7),
-                                    ],
-                                  ),
-                                ),
-                                padding: const EdgeInsets.all(16),
-                                child: Text(
-                                  section['heading'],
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+              backgroundColor: subjectData['color'],
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+              elevation: 2,
+            ),
+            body: Container(
+              color: const Color(0xFFF5F7FB),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          section['heading'],
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+
                         ),
                       ),
                     )
