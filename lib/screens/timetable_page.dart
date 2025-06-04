@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../services/AttendanceService.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class AttendanceCalendarPage extends StatefulWidget {
   const AttendanceCalendarPage({super.key});
@@ -15,30 +15,9 @@ class AttendanceCalendarPage extends StatefulWidget {
 class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
   late DateTime _focusedDay;
   late DateTime _selectedDay;
-  final AttendanceService _attendanceService = AttendanceService();
-  Map<DateTime, String> _attendanceMap = {}; // date -> 'Present'/'Absent'
-  int _presentCount = 0;
-  int _absentCount = 0;
-  double _attendancePercentage = 0.0;
+  Map<DateTime, Map<String, String>> _attendanceStatus = {};
   bool _isLoading = true;
-
-  // Example static public holidays list
-  final List<Map<String, String>> _publicHolidays = [
-    {'date': '2025-01-26', 'name': "Republic Day"},
-    {'date': '2025-03-29', 'name': "Holi"},
-    {'date': '2025-04-18', 'name': "Good Friday"},
-    {'date': '2025-05-23', 'name': "Founders' Day"},
-    {'date': '2025-08-15', 'name': "Independence Day"},
-    {'date': '2025-10-02', 'name': "Gandhi Jayanti"},
-    {'date': '2025-12-25', 'name': "Christmas"},
-  ];
-
-  Set<DateTime> get _publicHolidayDates {
-    return _publicHolidays.map((h) {
-      final parts = h['date']!.split('-').map(int.parse).toList();
-      return DateTime.utc(parts[0], parts[1], parts[2]);
-    }).toSet();
-  }
+  double _attendancePercentage = 0.0;
 
   @override
   void initState() {
@@ -49,106 +28,152 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
   }
 
   Future<void> _loadAttendance() async {
-    setState(() => _isLoading = true);
     try {
-      // TODO: Replace with actual studentId (e.g., from auth)
-      final studentId = 'STUDENT_ID_HERE';
-      final records = await _attendanceService.getStudentAttendanceRecords(studentId);
+      final data = await fetchAttendanceFromBackend();
+      final presentDays =
+          data.values.where((v) => v['status'] == 'Present').length;
+      final totalDays =
+          data.values.where((v) => v['status'] != 'Holiday').length;
 
-      final Map<DateTime, String> attMap = {};
-      int present = 0, absent = 0;
-      for (var rec in records) {
-        final dateParts = rec['date'].split('-').map(int.parse).toList();
-        final date = DateTime.utc(dateParts[0], dateParts[1], dateParts[2]);
-        attMap[date] = rec['present'] == true ? 'Present' : 'Absent';
-        if (rec['present'] == true) present++;
-        else absent++;
-      }
-      final total = present + absent;
       setState(() {
-        _attendanceMap = attMap;
-        _presentCount = present;
-        _absentCount = absent;
-        _attendancePercentage = total > 0 ? (present / total * 100) : 0.0;
+        _attendanceStatus = data;
+        _attendancePercentage = (presentDays / totalDays) * 100;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      if (kDebugMode) print('Error fetching attendance: $e');
+      if (kDebugMode) {
+        print("Error fetching attendance: $e");
+      }
     }
   }
 
-  Color _getStatusColor(DateTime date) {
-    final normalized = DateTime.utc(date.year, date.month, date.day);
-    if (_publicHolidayDates.contains(normalized)) return Colors.blue;
-    final status = _attendanceMap[normalized];
-    if (status == 'Present') return Colors.green;
-    if (status == 'Absent') return Colors.red;
-    return Colors.transparent;
+  Future<Map<DateTime, Map<String, String>>>
+      fetchAttendanceFromBackend() async {
+    await Future.delayed(const Duration(seconds: 2));
+
+    final response = jsonEncode([
+      {"date": "2025-05-01", "status": "Present"},
+      {"date": "2025-05-02", "status": "Absent"},
+      {"date": "2025-05-03", "status": "Holiday", "reason": "Good Friday"},
+      {"date": "2025-05-23", "status": "Holiday", "reason": "Founders' Day"},
+      {"date": "2025-05-04", "status": "Present"},
+      {"date": "2025-05-05", "status": "Absent"},
+    ]);
+
+    final List<dynamic> decoded = json.decode(response);
+    final Map<DateTime, Map<String, String>> result = {};
+
+    for (var item in decoded) {
+      final dateParts = item['date'].split('-').map(int.parse).toList();
+      final date = DateTime.utc(dateParts[0], dateParts[1], dateParts[2]);
+      result[date] = {
+        'status': item['status'],
+        'reason': item['reason'] ?? '',
+      };
+    }
+
+    return result;
   }
 
-  Widget _buildSummaryItem(String label, dynamic value, Color color) {
-    return Column(
-      children: [
-        Text(
-          '$value',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
-        ),
-        Text(label, style: TextStyle(color: color)),
-      ],
-    );
+  Color _getStatusColor(DateTime date) {
+    final data =
+        _attendanceStatus[DateTime.utc(date.year, date.month, date.day)];
+    switch (data?['status']) {
+      case 'Present':
+        return Colors.green.shade400;
+      case 'Absent':
+        return Colors.red.shade400;
+      case 'Holiday':
+        return Colors.blue.shade400;
+      default:
+        return Colors.transparent;
+    }
+  }
+
+  List<Widget> _buildHolidayList() {
+    final holidays = _attendanceStatus.entries
+        .where((entry) => entry.value['status'] == 'Holiday')
+        .map((entry) => Card(
+              elevation: 2,
+              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              child: ListTile(
+                leading: Icon(Icons.event, color: Colors.blue.shade400),
+                title: Text(
+                  '${entry.key.toLocal()}'.split(' ')[0],
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  entry.value['reason']?.isNotEmpty == true
+                      ? entry.value['reason']!
+                      : 'Holiday',
+                  style: GoogleFonts.poppins(),
+                ),
+              ),
+            ))
+        .toList();
+    return holidays;
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Attendance Calendar'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'Attendance', icon: Icon(Icons.calendar_today)),
-              Tab(text: 'Public Holidays', icon: Icon(Icons.flag)),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            // Attendance Tab
-            _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12.0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                _buildSummaryItem('Present', _presentCount, Colors.green),
-                                _buildSummaryItem('Absent', _absentCount, Colors.red),
-                                _buildSummaryItem('Attendance %', _attendancePercentage.toStringAsFixed(1), Colors.blue),
-                              ],
+    return Scaffold(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  expandedHeight: 200.0,
+                  floating: false,
+                  pinned: true,
+                  flexibleSpace: FlexibleSpaceBar(
+                    title: Text('My Attendance', style: GoogleFonts.poppins()),
+                    background: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topRight,
+                          end: Alignment.bottomLeft,
+                          colors: [Colors.blue.shade800, Colors.blue.shade500],
+                        ),
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '${_attendancePercentage.toStringAsFixed(1)}%',
+                              style: GoogleFonts.poppins(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
+                            Text(
+                              'Attendance Rate',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white70,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.withOpacity(0.2),
-                                  spreadRadius: 2,
-                                  blurRadius: 5,
-                                ),
-                              ],
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            padding: const EdgeInsets.all(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
                             child: TableCalendar(
                               firstDay: DateTime.utc(2020, 1, 1),
                               lastDay: DateTime.utc(2030, 12, 31),
@@ -161,9 +186,13 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                   _focusedDay = focusedDay;
                                 });
                               },
-                              calendarStyle: const CalendarStyle(
+                              calendarStyle: CalendarStyle(
                                 todayDecoration: BoxDecoration(
-                                  color: Colors.orangeAccent,
+                                  color: Colors.blue.shade300,
+                                  shape: BoxShape.circle,
+                                ),
+                                selectedDecoration: BoxDecoration(
+                                  color: Colors.blue.shade600,
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -176,7 +205,7 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                 formatButtonVisible: false,
                                 titleCentered: true,
                               ),
-                              calendarFormat: CalendarForma
+                              calendarFormat: CalendarFormat.month,
                               calendarBuilders: CalendarBuilders(
                                 defaultBuilder: (context, date, _) {
                                   final color = _getStatusColor(date);
@@ -189,7 +218,7 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                     alignment: Alignment.center,
                                     child: Text(
                                       '${date.day}',
-                                      style: TextStyle(
+                                      style: GoogleFonts.poppins(
                                         color: color == Colors.transparent
                                             ? Colors.black
                                             : Colors.white,
@@ -197,62 +226,64 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                     ),
                                   );
                                 },
-                                selectedBuilder: (context, date, _) {
-                                  return Container(
-                                    margin: const EdgeInsets.all(6.0),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.orange,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      '${date.day}',
-                                      style: const TextStyle(color: Colors.white),
-                                    ),
-                                  );
-                                },
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          const LegendRow(),
-                        ],
-                      ),
+                        ).animate().fadeIn().slideY(),
+                        const SizedBox(height: 20),
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Status Legend',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                const LegendRow(),
+                              ],
+                            ),
+                          ),
+                        ).animate().fadeIn().slideY(delay: 200.ms),
+                        const SizedBox(height: 20),
+                        Card(
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Upcoming Holidays',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                ..._buildHolidayList(),
+                              ],
+                            ),
+                          ),
+                        ).animate().fadeIn().slideY(delay: 400.ms),
+                      ],
                     ),
                   ),
-            // Public Holidays Tab
-            SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Public Holidays',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 16),
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _publicHolidays.length,
-                      separatorBuilder: (context, index) => const Divider(),
-                      itemBuilder: (context, index) {
-                        final holiday = _publicHolidays[index];
-                        return ListTile(
-                          leading: const Icon(Icons.flag, color: Colors.blue),
-                          title: Text(holiday['name'] ?? ''),
-                          subtitle: Text(holiday['date'] ?? ''),
-                        );
-                      },
-                    ),
-                  ],
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -264,10 +295,10 @@ class LegendRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: const [
-        LegendItem(color: Colors.green, label: 'Present'),
-        LegendItem(color: Colors.red, label: 'Absent'),
-        LegendItem(color: Colors.blue, label: 'Holiday'),
+      children: [
+        LegendItem(color: Colors.green.shade400, label: 'Present'),
+        LegendItem(color: Colors.red.shade400, label: 'Absent'),
+        LegendItem(color: Colors.blue.shade400, label: 'Holiday'),
       ],
     );
   }

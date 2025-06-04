@@ -7,9 +7,6 @@ import 'teacher_profile_page.dart';
 import 'student_details_screen.dart';
 import '../services/auth_service.dart';
 import '../services/teacher_profile_service.dart';
-import '../services/LeaveService.dart';
-import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() {
   runApp(const MaterialApp(
@@ -27,60 +24,26 @@ class TeacherDashboardScreen extends StatefulWidget {
 class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   Map<String, dynamic>? teacherData;
   bool isLoading = true;
-  List<Map<String, dynamic>> leaveAppointments = [];
-  bool isLeaveLoading = true;
 
   @override
   void initState() {
     super.initState();
     fetchTeacherProfile();
-    fetchLeaveApplications();
   }
 
   Future<void> fetchTeacherProfile() async {
-    final String? employeeId = await AuthService.getUserId();
-    if (employeeId == null) {
+    final String? teacherId = await AuthService.getUserId();
+    if (teacherId == null) {
       setState(() {
         isLoading = false;
       });
       return;
     }
-    final profile = await TeacherProfileService().getTeacherProfile(employeeId);
+    final profile = await ProfileService().getTeacherProfile(teacherId);
     setState(() {
       teacherData = profile;
       isLoading = false;
     });
-  }
-
-  Future<void> fetchLeaveApplications() async {
-    final String? employeeId = await AuthService.getUserId();
-    if (employeeId == null) {
-      setState(() {
-        isLeaveLoading = false;
-      });
-      return;
-    }
-
-    try {
-      final leaves = await LeaveService().getLeavesForClassTeacher(employeeId);
-      setState(() {
-        leaveAppointments = leaves;
-        isLeaveLoading = false;
-      });
-    } catch (e) {
-      print('Error fetching leave applications: $e');
-      setState(() {
-        isLeaveLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading leave applications: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
   }
 
   Future<bool> _onWillPop() async {
@@ -145,7 +108,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               const SizedBox(height: 20),
               _buildQuickActions(context),
               const SizedBox(height: 20),
-              _buildLeaveAppointments(context),
+              _buildLeaveAppointments(context), // Add this new section
               const SizedBox(height: 20),
             ],
           ),
@@ -327,10 +290,27 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
     );
   }
 
+  // Add this new method to build the leave appointments section
   Widget _buildLeaveAppointments(BuildContext context) {
-    if (isLeaveLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    // Sample leave appointment data - in a real app, this would come from a database
+    final List<Map<String, dynamic>> leaveAppointments = [
+      {
+        'studentName': 'Rahul Kumar',
+        'class': '8-A',
+        'startDate': '15/05/2023',
+        'endDate': '18/05/2023',
+        'reason': 'Family function',
+        'status': 'Pending'
+      },
+      {
+        'studentName': 'Priya Sharma',
+        'class': '10-A',
+        'startDate': '20/05/2023',
+        'endDate': '22/05/2023',
+        'reason': 'Medical appointment',
+        'status': 'Pending'
+      },
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,7 +319,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Leave Applications',
+              'Leave Appointments',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -347,7 +327,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             ),
             TextButton(
               onPressed: () {
-                // TODO: Navigate to all leave applications screen
+                // View all leave appointments
               },
               child: Text(
                 'View All',
@@ -363,7 +343,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               padding: const EdgeInsets.all(16.0),
               child: Center(
                 child: Text(
-                  'No pending leave applications',
+                  'No pending leave appointments',
                   style: TextStyle(color: Colors.grey[600]),
                 ),
               ),
@@ -386,7 +366,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                   leading: CircleAvatar(
                     backgroundColor: Colors.blue.shade100,
                     child: Text(
-                      (appointment['childRollNumber'] ?? '?').toString()[0],
+                      appointment['studentName'][0],
                       style: TextStyle(
                         color: Colors.blue.shade700,
                         fontWeight: FontWeight.bold,
@@ -394,25 +374,24 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                     ),
                   ),
                   title: Text(
-                    'Roll No: ${appointment['childRollNumber']}',
+                    appointment['studentName'],
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    'Class ${appointment['class']} • ${_formatDate(appointment['fromDate'])} to ${_formatDate(appointment['toDate'])}',
+                    'Class ${appointment['class']} • ${appointment['startDate']} to ${appointment['endDate']}',
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                   trailing: Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(appointment['status'])
-                          .withOpacity(0.1),
+                      color: Colors.orange.shade100,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      appointment['status'] ?? 'Pending',
+                      appointment['status'],
                       style: TextStyle(
-                        color: _getStatusColor(appointment['status']),
+                        color: Colors.orange.shade800,
                         fontWeight: FontWeight.w500,
                         fontSize: 12,
                       ),
@@ -426,35 +405,36 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                         children: [
                           const SizedBox(height: 8),
                           Text(
-                            'Reason: ${appointment['reason'] ?? ''}',
+                            'Reason: ${appointment['reason']}',
                             style: const TextStyle(fontSize: 14),
                           ),
                           const SizedBox(height: 16),
-                          if (appointment['status'] == 'pending')
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                OutlinedButton(
-                                  onPressed: () => _handleLeaveResponse(
-                                      appointment, 'rejected'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.red,
-                                    side: const BorderSide(color: Colors.red),
-                                  ),
-                                  child: const Text('Reject'),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              OutlinedButton(
+                                onPressed: () {
+                                  // Handle rejection logic
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red),
                                 ),
-                                const SizedBox(width: 12),
-                                ElevatedButton(
-                                  onPressed: () => _handleLeaveResponse(
-                                      appointment, 'approved'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.green,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  child: const Text('Approve'),
+                                child: const Text('Reject'),
+                              ),
+                              const SizedBox(width: 12),
+                              ElevatedButton(
+                                onPressed: () {
+                                  // Handle approval logic
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
                                 ),
-                              ],
-                            ),
+                                child: const Text('Approve'),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -465,51 +445,5 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           ),
       ],
     );
-  }
-
-  Color _getStatusColor(String? status) {
-    switch (status?.toLowerCase()) {
-      case 'approved':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      default:
-        return Colors.orange;
-    }
-  }
-
-  Future<void> _handleLeaveResponse(
-      Map<String, dynamic> leave, String status) async {
-    try {
-      // TODO: Implement leave response handling
-      // await LeaveService().updateLeaveStatus(leave['id'], status);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Leave ${status} successfully'),
-          backgroundColor: status == 'approved' ? Colors.green : Colors.red,
-        ),
-      );
-      // Refresh leave applications
-      fetchLeaveApplications();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error updating leave status: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  String _formatDate(dynamic timestamp) {
-    if (timestamp == null) return '';
-    if (timestamp is String) return timestamp;
-    if (timestamp is DateTime) {
-      return DateFormat('dd/MM/yyyy').format(timestamp);
-    }
-    if (timestamp is Timestamp) {
-      return DateFormat('dd/MM/yyyy').format(timestamp.toDate());
-    }
-    return '';
   }
 }
