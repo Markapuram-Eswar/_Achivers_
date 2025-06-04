@@ -8,7 +8,6 @@ import 'timetable_page.dart';
 import 'welcome_page.dart';
 import 'progress_page.dart';
 import 'practice_page.dart';
-import 'due_payments_screen.dart';
 
 void main() {
   runApp(MyHomePage(
@@ -34,7 +33,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late PageController _pageController;
   int _selectedIndex = 0;
 
-  final List<String> _labels = ['Home', 'Classes', 'Doubts', 'Profile'];
+  final List<String> _labels = ['Home', 'Classes', 'Contacts', 'Profile'];
 
   @override
   void initState() {

@@ -27,7 +27,7 @@ class TextbookPage extends StatefulWidget {
 class _TextbookPageState extends State<TextbookPage> {
   late Future<Map<String, dynamic>> _textbookData;
   final FlutterTts _flutterTts = FlutterTts();
-  List<dynamic> _voices = [];
+  List<Map<String, dynamic>> _voices = [];
   String? _selectedVoice;
   int? _currentlySpeakingIndex;
 
@@ -39,26 +39,49 @@ class _TextbookPageState extends State<TextbookPage> {
   }
 
   Future<void> _initTts() async {
-    _voices = await _flutterTts.getVoices;
+    try {
+      await _flutterTts.setPitch(1.0);
+      await _flutterTts.setSpeechRate(0.5);
+      final voices = (await _flutterTts.getVoices) as List<dynamic>?;
 
-    // Optional: Filter and pick only first 4 English voices for demo
-    _voices = _voices
-        .where((v) => v['locale'].toString().startsWith('en'))
-        .take(4)
-        .toList();
+      if (voices != null) {
+        _voices = voices
+            .cast<Map<String, dynamic>>()
+            .where((v) => v['locale']?.toString().startsWith('en') ?? false)
+            .take(4)
+            .toList();
+      }
 
-    if (_voices.isNotEmpty) {
-      _selectedVoice = _voices[0]['name'];
-      await _flutterTts.setVoice(_voices[0]);
-    }
+      if (_voices.isNotEmpty && mounted) {
+        _selectedVoice = _voices[0]['name'] as String?;
+        if (_selectedVoice != null) {
+          await _flutterTts.setVoice({
+            'name': _selectedVoice!,
+            'locale': _voices[0]['locale'] as String? ?? 'en-US',
+          });
+        }
+      } else if (mounted) {
+        setState(() {
+          _selectedVoice = null;
+        });
+      }
 
-    setState(() {});
+      await _flutterTts.setLanguage('en-US');
 
-    _flutterTts.setCompletionHandler(() {
-      setState(() {
-        _currentlySpeakingIndex = null;
+      _flutterTts.setCompletionHandler(() {
+        if (mounted) {
+          setState(() {
+            _currentlySpeakingIndex = null;
+          });
+        }
       });
-    });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('TTS Initialization Error: $e')),
+        );
+      }
+    }
   }
 
   Future<Map<String, dynamic>> fetchTextbookData(
@@ -79,7 +102,7 @@ class _TextbookPageState extends State<TextbookPage> {
           {
             "heading": "Introduction to Biology",
             "paragraph":
-                "Biology is the study of living organisms, divided into many specialized fields...   ",
+                "Biology is the study of living organisms, divided into many specialized fields...",
             "image":
                 "https://media.istockphoto.com/id/1322220448/photo/abstract-digital-futuristic-eye.jpg?s=1024x1024&w=is&k=20&c=LEk3Riu7RsJXkWMTEdmQ1yDkgf5F95ScLNZQ4j0P23g="
           },
@@ -101,19 +124,53 @@ class _TextbookPageState extends State<TextbookPage> {
   }
 
   Future<void> _speak(String text, int index) async {
-    if (_currentlySpeakingIndex == index) {
-      await _flutterTts.stop();
-      setState(() {
-        _currentlySpeakingIndex = null;
-      });
-    } else {
-      await _flutterTts
-          .setVoice(_voices.firstWhere((v) => v['name'] == _selectedVoice));
-      await _flutterTts.speak(text);
-      setState(() {
-        _currentlySpeakingIndex = index;
-      });
+    try {
+      if (_currentlySpeakingIndex == index) {
+        await _flutterTts.stop();
+        if (mounted) {
+          setState(() {
+            _currentlySpeakingIndex = null;
+          });
+        }
+      } else {
+        if (_selectedVoice != null && _voices.isNotEmpty) {
+          final voice = _voices.firstWhere(
+            (v) => v['name'] == _selectedVoice,
+            orElse: () => _voices[0],
+          );
+          await _flutterTts.setVoice({
+            'name': voice['name'] as String? ?? _selectedVoice!,
+            'locale': voice['locale'] as String? ?? 'en-US',
+          });
+          await _flutterTts.speak(text);
+          if (mounted) {
+            setState(() {
+              _currentlySpeakingIndex = index;
+            });
+          }
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No voice available')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('TTS Error: $e')),
+        );
+      }
     }
+  }
+
+  String _getGifForVoice(String? voiceName) {
+    if (voiceName == null) return 'Avatars/Boy avatar.gif';
+    final lower = voiceName.toLowerCase();
+    if (lower.contains('female')) return 'Avatars/Female avatar.gif';
+    if (lower.contains('girl')) return 'Avatars/Girl avatar.gif';
+    if (lower.contains('male')) return 'Avatars/Male avatar.gif';
+    if (lower.contains('boy')) return 'Avatars/Boy avatar.gif';
+    return 'Avatars/Boy avatar.gif';
   }
 
   @override
@@ -129,10 +186,12 @@ class _TextbookPageState extends State<TextbookPage> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
+            body: Center(child: CircularProgressIndicator()),
+          );
         } else if (snapshot.hasError) {
           return Scaffold(
-              body: Center(child: Text('Error: ${snapshot.error}')));
+            body: Center(child: Text('Error: ${snapshot.error}')),
+          );
         } else {
           final subjectData = snapshot.data!['subjectData'];
           final topicData = snapshot.data!['topicData'];
@@ -151,198 +210,269 @@ class _TextbookPageState extends State<TextbookPage> {
               ),
               elevation: 2,
             ),
-            body: Container(
-              color: const Color(0xFFF5F7FB),
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Header Card
-                      Card(
-                        elevation: 4,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        color: subjectData['color'].withOpacity(0.9),
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 32,
-                                backgroundColor: Colors.white,
-                                child: Image.network(
-                                  topicData['icon'],
-                                  width: 36,
-                                  height: 36,
-                                ),
-                              ),
-                              const SizedBox(width: 20),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      topicData['title'],
-                                      style: const TextStyle(
-                                        fontSize: 26,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
+            body: Stack(
+              children: [
+                Container(
+                  color: const Color(0xFFF5F7FB),
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Card(
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            color: subjectData['color'].withOpacity(0.9),
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 32,
+                                    backgroundColor: Colors.white,
+                                    child: Image.network(
+                                      topicData['icon'],
+                                      width: 36,
+                                      height: 36,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              const Icon(Icons.error),
+                                      loadingBuilder:
+                                          (context, child, loadingProgress) {
+                                        if (loadingProgress == null) {
+                                          return child;
+                                        }
+                                        return const CircularProgressIndicator();
+                                      },
                                     ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      subjectData['name'],
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      if (_voices.isNotEmpty) ...[
-                        const Text(
-                          "Select Voice:",
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 4),
-                        DropdownButton<String>(
-                          value: _selectedVoice,
-                          items: _voices
-                              .map<DropdownMenuItem<String>>(
-                                  (voice) => DropdownMenuItem<String>(
-                                        value: voice['name'],
-                                        child: Text(voice['name']),
-                                      ))
-                              .toList(),
-                          onChanged: (value) async {
-                            setState(() {
-                              _selectedVoice = value;
-                            });
-                            await _flutterTts.setVoice(
-                                _voices.firstWhere((v) => v['name'] == value));
-                          },
-                        ),
-                        const SizedBox(height: 18),
-                      ],
-                      ...List.generate(content.length, (index) {
-                        final section = content[index];
-                        final isSpeaking = _currentlySpeakingIndex == index;
-                        return Column(
-                          children: [
-                            Card(
-                              elevation: isSpeaking ? 8 : 3,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              color: isSpeaking
-                                  ? Colors.yellow.withOpacity(0.15)
-                                  : Colors.white,
-                              child: Padding(
-                                padding: const EdgeInsets.all(18.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Remove the Row with the icon, just show heading and listen button
-                                    Row(
+                                  ),
+                                  const SizedBox(width: 20),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        // Icon removed!
-                                        Expanded(
-                                          child: Text(
-                                            section['heading'],
-                                            style: TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.w700,
-                                              color: subjectData['color'],
-                                            ),
+                                        Text(
+                                          topicData['title'],
+                                          style: const TextStyle(
+                                            fontSize: 26,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
                                           ),
                                         ),
-                                        IconButton(
-                                          icon: Icon(
-                                            isSpeaking
-                                                ? Icons.stop_circle
-                                                : Icons.volume_up_rounded,
-                                            color: isSpeaking
-                                                ? Colors.red
-                                                : Colors.blue[700],
-                                            size: 28,
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          subjectData['name'],
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            color: Colors.white70,
                                           ),
-                                          onPressed: () => _speak(
-                                              section['paragraph'], index),
-                                          tooltip:
-                                              isSpeaking ? "Stop" : "Listen",
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      section['paragraph'],
-                                      style: const TextStyle(
-                                        fontSize: 16.5,
-                                        height: 1.5,
-                                      ),
-                                    ),
-                                    if (section.containsKey('image'))
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 16.0),
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          child: Image.network(
-                                            section['image'],
-                                            height: 160,
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
-                            if (index != content.length - 1)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Divider(
-                                        color: Colors.grey[400],
-                                        thickness: 1,
-                                      ),
+                          ),
+                          const SizedBox(height: 24),
+                          if (_voices.isNotEmpty) ...[
+                            const Text(
+                              "Select Voice:",
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 4),
+                            DropdownButton<String>(
+                              value: _selectedVoice,
+                              items: _voices
+                                  .map<DropdownMenuItem<String>>(
+                                    (voice) => DropdownMenuItem<String>(
+                                      value: voice['name'] as String?,
+                                      child: Text(voice['name']?.toString() ??
+                                          'Unknown Voice'),
                                     ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8),
-                                      child: Icon(Icons.arrow_downward,
-                                          color: Colors.grey[400], size: 18),
-                                    ),
-                                    Expanded(
-                                      child: Divider(
-                                        color: Colors.grey[400],
-                                        thickness: 1,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) async {
+                                if (value == null) return;
+                                setState(() {
+                                  _selectedVoice = value;
+                                });
+                                try {
+                                  final voice = _voices.firstWhere(
+                                    (v) => v['name'] == value,
+                                    orElse: () => _voices[0],
+                                  );
+                                  await _flutterTts.setVoice({
+                                    'name': voice['name'] as String? ?? value,
+                                    'locale':
+                                        voice['locale'] as String? ?? 'en-US',
+                                  });
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content: Text('Voice Error: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 18),
+                          ] else ...[
+                            const Text(
+                              "No voices available",
+                              style: TextStyle(color: Colors.red),
+                            ),
+                            const SizedBox(height: 18),
                           ],
-                        );
-                      }),
-                    ],
+                          ...List.generate(content.length, (index) {
+                            final section = content[index];
+                            final isSpeaking = _currentlySpeakingIndex == index;
+                            return Column(
+                              children: [
+                                Card(
+                                  elevation: isSpeaking ? 8 : 3,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  color: isSpeaking
+                                      ? Colors.yellow.withOpacity(0.15)
+                                      : Colors.white,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(18.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                section['heading'],
+                                                style: TextStyle(
+                                                  fontSize: 24,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: subjectData['color'],
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              icon: Icon(
+                                                isSpeaking
+                                                    ? Icons.stop_circle
+                                                    : Icons.volume_up_rounded,
+                                                color: isSpeaking
+                                                    ? Colors.red
+                                                    : Colors.blue[700],
+                                                size: 28,
+                                              ),
+                                              onPressed: _selectedVoice != null
+                                                  ? () => _speak(
+                                                      section['paragraph'],
+                                                      index)
+                                                  : null,
+                                              tooltip: isSpeaking
+                                                  ? "Stop"
+                                                  : "Listen",
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          section['paragraph'],
+                                          style: const TextStyle(
+                                            fontSize: 16.5,
+                                            height: 1.5,
+                                          ),
+                                        ),
+                                        if (section.containsKey('image'))
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                top: 16.0),
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              child: Image.network(
+                                                section['image'],
+                                                height: 160,
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error,
+                                                        stackTrace) =>
+                                                    const Icon(Icons.error),
+                                                loadingBuilder: (context, child,
+                                                    loadingProgress) {
+                                                  if (loadingProgress == null) {
+                                                    return child;
+                                                  }
+                                                  return const Center(
+                                                      child:
+                                                          CircularProgressIndicator());
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                if (index != content.length - 1)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Divider(
+                                            color: Colors.grey[400],
+                                            thickness: 1,
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                          child: Icon(Icons.arrow_downward,
+                                              color: Colors.grey[400],
+                                              size: 18),
+                                        ),
+                                        Expanded(
+                                          child: Divider(
+                                            color: Colors.grey[400],
+                                            thickness: 1,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            );
+                          }),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                if (_currentlySpeakingIndex != null)
+                  Positioned(
+                    bottom: 24,
+                    right: 24,
+                    child: SizedBox(
+                      width: 64,
+                      height: 64,
+                      child: Image.asset(
+                        _getGifForVoice(_selectedVoice),
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.audiotrack),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           );
         }

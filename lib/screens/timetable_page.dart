@@ -233,7 +233,7 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                         );
                       },
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -249,16 +249,13 @@ class LegendRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.all(12.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          LegendItem(color: Colors.green, label: 'Present'),
-          LegendItem(color: Colors.red, label: 'Absent'),
-          LegendItem(color: Colors.blue, label: 'Holiday'),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        LegendItem(color: Colors.green.shade400, label: 'Present'),
+        LegendItem(color: Colors.red.shade400, label: 'Absent'),
+        LegendItem(color: Colors.blue.shade400, label: 'Holiday'),
+      ],
     );
   }
 }
@@ -282,7 +279,10 @@ class LegendItem extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Text(label),
+        Text(
+          label,
+          style: GoogleFonts.poppins(),
+        ),
       ],
     );
   }

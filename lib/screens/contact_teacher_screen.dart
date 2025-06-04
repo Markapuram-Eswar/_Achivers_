@@ -1,47 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
+void main() {
+  runApp(
+    const MaterialApp(
+      home: ContactTeacherScreen(),
+      debugShowCheckedModeBanner: false,
+    ),
+  );
+}
 
 class ContactTeacherScreen extends StatelessWidget {
-  const ContactTeacherScreen({super.key});
+  final bool showExitConfirmation;
+  final Widget? previousScreen;
+
+  const ContactTeacherScreen({
+    super.key,
+    this.showExitConfirmation = false,
+    this.previousScreen,
+  });
 
   @override
   Widget build(BuildContext context) {
     final List<Map<String, String>> teachers = [
       {
-        'name': 'Mrs. Lakshmi',
+        'name': 'Mr. test',
         'subject': 'Mathematics',
         'image': 'L',
-        'phone': '+911234567890', // Add phone numbers for WhatsApp
+        'phone': '918106645476', // Add phone numbers for WhatsApp
       },
       {
-        'name': 'Mr. Ravi Kumar',
+        'name': 'Mr.anirudd ',
         'subject': 'Science',
         'image': 'R',
-        'phone': '+911234567891',
+        'phone': '917032933445',
       },
       {
         'name': 'Mrs. Priya Sharma',
         'subject': 'English',
         'image': 'P',
-        'phone': '+911234567892',
+        'phone': '911234567892',
       },
       {
         'name': 'Mr. Suresh Reddy',
         'subject': 'Social Studies',
         'image': 'S',
-        'phone': '+911234567893',
+        'phone': '911234567893',
       },
       {
         'name': 'Mrs. Anjali Gupta',
         'subject': 'Hindi',
         'image': 'A',
-        'phone': '+911234567894',
+        'phone': '911234567894',
       },
     ];
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.blue[900],
         title: const Text(
           'Contact Teachers',
@@ -49,7 +67,41 @@ class ContactTeacherScreen extends StatelessWidget {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () async {
+            if (showExitConfirmation) {
+              final shouldPop = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Discard changes?'),
+                  content: const Text(
+                      'Are you sure you want to go back? Any unsaved changes will be lost.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Discard'),
+                    ),
+                  ],
+                ),
+              );
+
+              if (shouldPop != true) return;
+            }
+
+            if (context.mounted) {
+              if (previousScreen != null) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => previousScreen!),
+                );
+              } else {
+                Navigator.pop(context);
+              }
+            }
+          },
         ),
       ),
       body: ListView.builder(
@@ -86,33 +138,27 @@ class ContactTeacherScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(teacher['subject']!),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _buildContactButton(
-                        icon: Icons.connect_without_contact,
-                        label: 'WhatsApp',
-                        onPressed: () async {
-                          final phoneNumber = teacher['phone']!;
-                          final message =
-                              'Hello ${teacher['name']}, I would like to connect with you regarding ${teacher['subject']}.';
-                          final whatsappUrl =
-                              'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}';
-
-                          if (await canLaunchUrlString(whatsappUrl)) {
-                            await launchUrlString(whatsappUrl);
-                          } else {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Could not launch WhatsApp'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                      ),
-                    ],
+                  Align(
+                    alignment:
+                        Alignment.centerRight, // Move button to the right
+                    child: _buildContactButton(
+                      icon: Icons.connect_without_contact,
+                      label: 'WhatsApp',
+                      backgroundColor:
+                          Color(0xFF25D366), // WhatsApp green color
+                      onPressed: () async {
+                        String phoneNumber = teacher['phone']!;
+                        if (phoneNumber.startsWith('+')) {
+                          phoneNumber = phoneNumber.substring(1);
+                        }
+                        final message =
+                            'Hello ${teacher['name']}, I would like to connect with you regarding ${teacher['subject']}.';
+                        final whatsappUrl =
+                            'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}';
+                        await launchUrlString(whatsappUrl,
+                            mode: LaunchMode.externalApplication);
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -127,17 +173,28 @@ class ContactTeacherScreen extends StatelessWidget {
     required IconData icon,
     required String label,
     required VoidCallback onPressed,
+    Color? backgroundColor,
   }) {
-    return Expanded(
-      child: ElevatedButton.icon(
-        icon: Icon(icon, size: 20),
-        label: Text(label),
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blue[900],
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+    return ElevatedButton.icon(
+      icon: FaIcon(FontAwesomeIcons.whatsapp,
+          size: 26, color: Colors.white), // WhatsApp icon
+      label: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
+      ),
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.green[600], // WhatsApp green
+        foregroundColor: Colors.white,
+        minimumSize: const Size(140, 52),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        elevation: 2,
       ),
     );
   }

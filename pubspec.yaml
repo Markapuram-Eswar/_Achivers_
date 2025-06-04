@@ -60,7 +60,10 @@ dependencies:
   firebase_storage: ^12.4.6
   open_filex: ^4.3.2
   syncfusion_flutter_pdfviewer: ^29.2.7
-
+  cached_network_image: ^3.4.1
+  pdf: ^3.10.7
+  share_plus: ^7.2.1
+  font_awesome_flutter: ^10.8.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -87,24 +90,13 @@ flutter:
     - assets/videos/park_theme.mp4
     - assets/images/logo.png
     - assets/images/avatar-girl-svgrepo-com.svg
-    - assets/videos/2.mp4
-    - assets/videos/3.mp4
-    - assets/videos/4.mp4
-    - assets/videos/5.mp4
-    - assets/videos/6.mp4
-    - assets/videos/7.mp4
-    - assets/videos/8.mp4
-    - assets/videos/9.mp4
-    - assets/videos/intro.mp4
-    - assets/videos/tr1.mp4
-    - assets/videos/tr2.mp4
-    - assets/videos/tr10.mp4
     - assets/videos/3,4,5,6.mp4
     - assets/videos/22.mp4
     - assets/videos/27.mp4
     - assets/videos/28.mp4
     - assets/videos/29.mp4
     - assets/videos/intro2.mp4
+    - assets/videos/intro1.mp4
     - assets/videos/32.mp4
     - assets/videos/33.mp4
     - assets/videos/34.mp4
@@ -114,6 +106,18 @@ flutter:
     - assets/videos/38.mp4
     - assets/videos/39.mp4
     - assets/videos/intro3.mp4
+    - assets/videos/12.mp4
+    - assets/videos/13.mp4
+    - assets/videos/14.mp4
+    - assets/videos/15.mp4
+    - assets/videos/16.mp4
+    - assets/videos/17.mp4
+    - assets/videos/18.mp4
+    - assets/videos/19.mp4
+    - assets/Avatars/Boy avatar.gif
+    - assets/Avatars/Girl avatar.gif
+    - assets/Avatars/Female avatar.gif
+    - assets/Avatars/Male avatar.gif
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
