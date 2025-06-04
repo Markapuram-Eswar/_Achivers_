@@ -64,6 +64,163 @@ class _ReportsZonePageState extends State<ReportsZonePage>
     super.dispose();
   }
 
+  Future<void> _downloadAppReportPdf() async {
+    if (!mounted) return;
+
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Generating app report...'),
+          ],
+        ),
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    try {
+      final pdf = pw.Document();
+      final now = DateTime.now();
+      final formattedDate = '${now.day}/${now.month}/${now.year}';
+
+      // Add a page to the PDF
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (pw.Context context) {
+            return [
+              // Header
+              pw.Header(
+                level: 0,
+                child: pw.Text(
+                  'App Usage Report',
+                  style: pw.TextStyle(
+                    fontSize: 24,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.blue900,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 16),
+
+              // Report Info
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Generated on: $formattedDate'),
+                      pw.Text('App Version: 1.0.0'),
+                    ],
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 24),
+
+              // Summary Section
+              pw.Header(
+                level: 1,
+                child: pw.Text(
+                  'App Usage Summary',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 16),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _buildReportRow('Total Time Spent', '12h 45m'),
+                    _buildReportRow('Lessons Completed', '24'),
+                    _buildReportRow('Quizzes Taken', '15'),
+                    _buildReportRow('Average Score', '87%'),
+                    _buildReportRow('Streak Days', '7'),
+                  ],
+                ),
+              ),
+            ];
+          },
+        ),
+      );
+
+      // Save the PDF to a temporary file
+      final output = await getTemporaryDirectory();
+      final file = File(
+          '${output.path}/app_report_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      await file.writeAsBytes(await pdf.save());
+
+      // Hide the loading snackbar
+      if (mounted) {
+        scaffoldMessenger.hideCurrentSnackBar();
+      }
+
+      // Open the PDF file
+      await OpenFilex.open(file.path);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Report downloaded successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate report: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  pw.Widget _buildReportRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(
+            label,
+            style: const pw.TextStyle(fontSize: 14),
+          ),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 14,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _downloadSampleTablePdf() async {
     // Show loading indicator
     if (!mounted) return;
@@ -711,6 +868,44 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                             padding: const EdgeInsets.all(16),
                             child: Column(
                               children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        'App Usage Report',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue[900],
+                                        ),
+                                      ),
+                                    ),
+                                    ElevatedButton.icon(
+                                      onPressed: _downloadAppReportPdf,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.blue[900],
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                          horizontal: 16,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                      icon:
+                                          const Icon(Icons.download, size: 20),
+                                      label: Text(
+                                        'Download Report',
+                                        style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
                                 UserSummary(user: data.user),
                                 const SizedBox(height: 16),
                                 TopLearners(learners: data.learners),
