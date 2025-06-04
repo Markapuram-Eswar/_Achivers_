@@ -34,8 +34,60 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
   Timer? _buttonTimer;
   Timer? _countdownTimer;
   bool _terminated = false;
-  int grade = 1;
+  int grade = 9;
   int sec = 10;
+
+  // Quiz related variables
+  int _currentQuestionIndex = 0;
+  late List<Map<String, dynamic>> _shuffledQuestions;
+  late List<List<String>> _shuffledOptions = [];
+  late List<int> _correctAnswerIndices = [];
+
+  // List of questions with their options and correct answer index
+  final List<Map<String, dynamic>> _quizQuestions = [
+    {
+      'question': 'What is the capital of France?',
+      'options': ['Paris', 'London', 'Berlin', 'Madrid'],
+      'correctIndex': 0,
+    },
+    {
+      'question': 'Which planet is known as the Red Planet?',
+      'options': ['Venus', 'Mars', 'Jupiter', 'Saturn'],
+      'correctIndex': 1,
+    },
+    {
+      'question': 'What is the largest mammal in the world?',
+      'options': ['African Elephant', 'Blue Whale', 'Giraffe', 'Polar Bear'],
+      'correctIndex': 1,
+    },
+    {
+      'question': 'Which element has the chemical symbol "O"?',
+      'options': ['Gold', 'Oxygen', 'Osmium', 'Oganesson'],
+      'correctIndex': 1,
+    },
+  ];
+
+  void _initializeQuiz() {
+    _shuffledQuestions = List.from(_quizQuestions);
+    _shuffledQuestions.shuffle();
+
+    _shuffledOptions = [];
+    _correctAnswerIndices = [];
+
+    for (var question in _shuffledQuestions) {
+      final options = List<String>.from(question['options'] as List);
+      final correctAnswer = options[question['correctIndex'] as int];
+
+      // Shuffle options
+      options.shuffle();
+
+      // Find the new index of the correct answer
+      final correctIndex = options.indexOf(correctAnswer);
+
+      _shuffledOptions.add(options);
+      _correctAnswerIndices.add(correctIndex);
+    }
+  }
 
   @override
   void initState() {
@@ -84,9 +136,18 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
   }
 
   void _showButtonPage() {
-    if (_terminated) return;
+    // Initialize quiz on first call
+    if (_currentQuestionIndex == 0) {
+      _initializeQuiz();
+    }
 
-    sec = 10; // Reset timer each time dialog is shown
+    // If we've shown all questions, reset
+    if (_currentQuestionIndex >= _shuffledQuestions.length) {
+      _currentQuestionIndex = 0;
+      _initializeQuiz();
+    }
+
+    int sec = 15; // Increased time for reading questions
 
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -96,14 +157,24 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
         });
       } else {
         timer.cancel();
+        if (mounted) {
+          Navigator.of(context).pop();
+          _handleTimeout();
+        }
       }
     });
 
     _buttonTimer = Timer(Duration(seconds: sec), () {
       _countdownTimer?.cancel();
-      Navigator.of(context).pop();
-      _handleTimeout();
+      if (mounted) {
+        Navigator.of(context).pop();
+        _handleTimeout();
+      }
     });
+
+    final currentQuestion = _shuffledQuestions[_currentQuestionIndex];
+    final currentOptions = _shuffledOptions[_currentQuestionIndex];
+    final correctIndex = _correctAnswerIndices[_currentQuestionIndex];
 
     showDialog(
       context: context,
@@ -111,53 +182,86 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
       builder: (_) {
         return AlertDialog(
           backgroundColor: Colors.grey[850],
-          title: Text('Choose a Door'),
+          title: Text(
+            'Question ${_currentQuestionIndex + 1} of ${_shuffledQuestions.length}',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
           content: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: Container(
-                width: 340,
+                width: 450, // Slightly wider for better readability
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.white24, width: 1.5),
                 ),
                 padding:
-                    const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
+                    const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: List.generate(4, (index) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 60,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Colors.blueGrey[800]?.withOpacity(0.85),
-                            foregroundColor: Colors.white,
-                            textStyle: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 4,
-                          ),
-                          onPressed: () {
-                            _buttonTimer?.cancel();
-                            _countdownTimer?.cancel();
-                            Navigator.of(context).pop();
-                            _handleButtonSelection(index);
-                          },
-                          child: Text('Door ${index + 1}'),
-                        ),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      currentQuestion['question'] as String,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        height: 1.3,
                       ),
-                    );
-                  }),
+                    ),
+                    SizedBox(height: 24),
+                    ...List.generate(currentOptions.length, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Colors.blueGrey[800]?.withOpacity(0.85),
+                              foregroundColor: Colors.white,
+                              textStyle: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: index == correctIndex
+                                      ? Colors.greenAccent.withOpacity(0.5)
+                                      : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                              elevation: 3,
+                            ),
+                            onPressed: () {
+                              _buttonTimer?.cancel();
+                              _countdownTimer?.cancel();
+                              if (mounted) {
+                                Navigator.of(context).pop();
+                                _currentQuestionIndex++;
+                                _handleButtonSelection(
+                                    index == correctIndex ? 0 : 1);
+                              }
+                            },
+                            child: Text(
+                              currentOptions[index],
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
                 ),
               ),
             ),
@@ -174,26 +278,22 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
     String loopVideo;
     String successVideo;
     String failureVideo;
-    String timeoutVideo;
 
     if (grade <= 3) {
       videoPath = 'assets/videos/1${index + 3}.mp4';
       loopVideo = 'assets/videos/12.mp4';
       successVideo = 'assets/videos/19.mp4';
       failureVideo = 'assets/videos/18.mp4';
-      timeoutVideo = 'assets/videos/17.mp4';
     } else if (grade > 3 && grade < 7) {
       videoPath = 'assets/videos/3,4,5,6.mp4';
       loopVideo = 'assets/videos/22.mp4';
       successVideo = 'assets/videos/29.mp4';
       failureVideo = 'assets/videos/28.mp4';
-      timeoutVideo = 'assets/videos/27.mp4';
     } else {
       videoPath = 'assets/videos/3${index + 3}.mp4';
       loopVideo = 'assets/videos/32.mp4';
       successVideo = 'assets/videos/39.mp4';
       failureVideo = 'assets/videos/38.mp4';
-      timeoutVideo = 'assets/videos/37.mp4';
     }
 
     _playVideo(videoPath, onEnd: () {
