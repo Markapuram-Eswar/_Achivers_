@@ -1,5 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../services/TestService.dart';
+import '../services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
@@ -21,93 +25,99 @@ class McqPage extends StatefulWidget {
 }
 
 class McqPageState extends State<McqPage> {
-  late List<Map<String, dynamic>> _questions;
+  List<Map<String, dynamic>> _questions = []; // Initialize with empty list
   int _currentQuestionIndex = 0;
   List<int?> _selectedAnswers = [];
   bool _hasSubmitted = false;
   bool _showReview = false;
   int _score = 0;
+  bool _isLoading = true;
+  final TestService _testService = TestService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   @override
   void initState() {
     super.initState();
-    _initializeQuestions();
+    _loadQuestions();
   }
 
-  void _initializeQuestions() {
-    // Sample questions - in a real app, this would come from a database
-    _questions = [
-      {
-        'question':
-            'Which of the following best describes ${widget.topicData['title']}?',
-        'options': [
-          'The study of numbers and their operations',
-          'The study of matter and energy',
-          'The study of living organisms',
-          'The study of language and communication'
-        ],
-        'correctAnswer': 0,
-        'explanation':
-            'This is the fundamental definition of ${widget.topicData['title']} in ${widget.subjectData['title']}.'
-      },
-      {
-        'question':
-            'Who is considered the father of modern ${widget.topicData['title']}?',
-        'options': [
-          'Albert Einstein',
-          'Isaac Newton',
-          'Galileo Galilei',
-          'Nikola Tesla'
-        ],
-        'correctAnswer': 1,
-        'explanation':
-            'Isaac Newton made significant contributions to the field of ${widget.topicData['title']} and is often considered its founding father.'
-      },
-      {
-        'question':
-            'Which principle is NOT associated with ${widget.topicData['title']}?',
-        'options': [
-          'Conservation of energy',
-          'Law of gravity',
-          'Principle of relativity',
-          'Law of diminishing returns'
-        ],
-        'correctAnswer': 3,
-        'explanation':
-            'The law of diminishing returns is an economic principle, not related to ${widget.topicData['title']}.'
-      },
-      {
-        'question':
-            'What is the primary application of ${widget.topicData['title']} in modern technology?',
-        'options': [
-          'Social media algorithms',
-          'Renewable energy systems',
-          'Medical diagnostics',
-          'All of the above'
-        ],
-        'correctAnswer': 3,
-        'explanation':
-            '${widget.topicData['title']} has applications in various fields including all the options mentioned.'
-      },
-      {
-        'question':
-            'Which formula is most closely associated with ${widget.topicData['title']}?',
-        'options': ['E = mc²', 'F = ma', 'a² + b² = c²', 'PV = nRT'],
-        'correctAnswer': 1,
-        'explanation':
-            'F = ma (Force equals mass times acceleration) is a fundamental formula in ${widget.topicData['title']}.'
-      },
-    ];
+  Future<void> _loadQuestions() async {
+    try {
+      setState(() => _isLoading = true);
+      
+      // Fetch questions from Firestore using testId
+      final testId = widget.topicData['testId'];
+      if (testId == null) {
+        throw Exception('Test ID not found');
+      }
 
-    // Initialize selected answers list
-    _selectedAnswers = List.filled(_questions.length, null);
+      print('Loading questions for test ID: $testId'); // Debug log
+
+      // Get the test document
+      final testDoc = await FirebaseFirestore.instance
+          .collection('tests')
+          .doc(testId)
+          .get();
+
+      if (!testDoc.exists) {
+        throw Exception('Test document not found');
+      }
+
+      print('Test document found: ${testDoc.data()}'); // Debug log
+
+      final testData = testDoc.data();
+      if (testData == null || testData['questions'] == null) {
+        throw Exception('No questions found in test document');
+      }
+
+      // Convert questions array to the required format
+      final questionsList = List<Map<String, dynamic>>.from(testData['questions']).map((q) {
+        return {
+          'question': q['question'] ?? 'Question not available',
+          'options': List<String>.from(q['options'] ?? []),
+          'correctAnswer': q['correctOptions'] != null && (q['correctOptions'] as List).isNotEmpty 
+              ? (q['correctOptions'] as List).first 
+              : 0,
+          'explanation': 'This is a ${q['type'] ?? 'multiple choice'} question from section ${q['section'] ?? 'A'}',
+          'type': q['type'] ?? 'multipleChoice',
+          'section': q['section'] ?? 'A',
+        };
+      }).toList();
+
+      if (questionsList.isEmpty) {
+        throw Exception('No valid questions found in test document');
+      }
+
+      if (mounted) {
+        setState(() {
+          _questions = questionsList;
+          _selectedAnswers = List.filled(_questions.length, null);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading questions: $e'); // Debug log
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _questions = [];
+          _selectedAnswers = [];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading questions: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   bool get _allQuestionsAnswered {
-    return !_selectedAnswers.any((answer) => answer == null);
+    return _questions.isNotEmpty && !_selectedAnswers.any((answer) => answer == null);
   }
 
-  void _submitQuiz() {
+  Future<void> _submitQuiz() async {
     if (!_allQuestionsAnswered) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -116,17 +126,57 @@ class McqPageState extends State<McqPage> {
       return;
     }
 
-    setState(() {
-      _hasSubmitted = true;
+    try {
+      setState(() => _hasSubmitted = true);
       _showReview = false;
       _score = 0;
 
+      // Calculate score
       for (int i = 0; i < _questions.length; i++) {
         if (_selectedAnswers[i] == _questions[i]['correctAnswer']) {
           _score++;
         }
       }
-    });
+
+      // Get student ID from AuthService
+      final studentId = await AuthService.getUserId();
+      if (studentId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Calculate percentage score
+      final percentageScore = (_score / _questions.length) * 100;
+
+      // Update test status
+      await _testService.updateTestStatus(
+        testId: widget.topicData['testId'],
+        studentId: studentId,
+        status: 'completed',
+        score: _score,
+        totalQuestions: _questions.length,
+        percentageScore: percentageScore,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Test submitted successfully! Score: $_score/${_questions.length} (${percentageScore.toStringAsFixed(1)}%)'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error submitting test: $e'); // Debug log
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error submitting test: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _checkAnswers() {
@@ -411,6 +461,60 @@ class McqPageState extends State<McqPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            '${widget.topicData['title']} MCQs',
+            style: const TextStyle(color: Colors.white),
+          ),
+          backgroundColor: widget.subjectData['color'],
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_questions.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            '${widget.topicData['title']} MCQs',
+            style: const TextStyle(color: Colors.white),
+          ),
+          backgroundColor: widget.subjectData['color'],
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 48,
+                color: Colors.red,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No questions available for this test',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _loadQuestions,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -773,10 +877,39 @@ class McqPageState extends State<McqPage> {
     final question = _questions[_currentQuestionIndex];
     final List<String> options = question['options'];
     final int correctAnswer = question['correctAnswer'];
+    final String questionType = question['type'] ?? 'multipleChoice';
+    final String section = question['section'] ?? 'A';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Question header with type and section
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: widget.subjectData['color'].withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                questionType == 'multipleChoice' ? Icons.check_circle_outline : Icons.radio_button_checked,
+                size: 16,
+                color: widget.subjectData['color'],
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${questionType.toUpperCase()} - Section $section',
+                style: TextStyle(
+                  color: widget.subjectData['color'],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Question text
         Text(
           question['question'],
           style: const TextStyle(
@@ -785,6 +918,7 @@ class McqPageState extends State<McqPage> {
           ),
         ),
         const SizedBox(height: 20),
+        // Options
         ...List.generate(options.length, (index) {
           final isSelected = _selectedAnswers[_currentQuestionIndex] == index;
           final isCorrect = index == correctAnswer;
@@ -794,24 +928,23 @@ class McqPageState extends State<McqPage> {
 
           if (_hasSubmitted) {
             if (isSelected && isCorrect) {
-              backgroundColor = Colors.green.withValues(alpha: 0.1);
+              backgroundColor = Colors.green.withOpacity(0.1);
               borderColor = Colors.green;
             } else if (isSelected && !isCorrect) {
-              backgroundColor = Colors.red.withValues(alpha: 0.1);
+              backgroundColor = Colors.red.withOpacity(0.1);
               borderColor = Colors.red;
             } else if (isCorrect) {
-              backgroundColor = Colors.green.withValues(alpha: 0.1);
+              backgroundColor = Colors.green.withOpacity(0.1);
               borderColor = Colors.green;
             } else {
-              backgroundColor = Colors.grey.withValues(alpha: 0.1);
+              backgroundColor = Colors.grey.withOpacity(0.1);
               borderColor = Colors.grey;
             }
           } else {
             backgroundColor = isSelected
                 ? widget.subjectData['color'].withOpacity(0.1)
-                : Colors.grey.withValues(alpha: 0.1);
-            borderColor =
-                isSelected ? widget.subjectData['color'] : Colors.grey;
+                : Colors.grey.withOpacity(0.1);
+            borderColor = isSelected ? widget.subjectData['color'] : Colors.grey;
           }
 
           return GestureDetector(
@@ -858,8 +991,7 @@ class McqPageState extends State<McqPage> {
                       options[index],
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -874,7 +1006,7 @@ class McqPageState extends State<McqPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.1),
+              color: Colors.blue.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.blue),
             ),

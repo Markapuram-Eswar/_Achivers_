@@ -17,6 +17,21 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   Map<String, dynamic>? teacherData;
   bool isLoading = true;
 
+  // Dropdown state
+  String? _selectedClass;
+  String? _selectedSection;
+  final List<String> _classes = [
+    '6', '7', '8', '9', '10', '11', '12'
+  ];
+  final List<String> _sections = ['A', 'B', 'C', 'D'];
+  bool _isUpdatingClassSection = false;
+  bool _isEditingClassSection = false;
+
+  // Add state for add-class UI
+  bool _isAddingClass = false;
+  String? _newClass;
+  String? _newSection;
+
   // Sample teacher data - in a real app, this would come from a database
   // final Map<String, dynamic> teacherData = {
   //   'name': 'Mrs. Lakshmi',
@@ -57,11 +72,33 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       });
       return;
     }
-    final profile = await ProfileService().getTeacherProfile(teacherId);
+    final profile = await TeacherProfileService().getTeacherProfile(teacherId);
     setState(() {
       teacherData = profile;
       isLoading = false;
+      // Set initial dropdown values if available
+      _selectedClass = profile?['class']?.toString();
+      _selectedSection = profile?['section']?.toString();
     });
+  }
+
+  Future<void> _updateClassSection() async {
+    final String? teacherId = await AuthService.getUserId();
+    if (teacherId == null || _selectedClass == null || _selectedSection == null) return;
+    setState(() => _isUpdatingClassSection = true);
+    try {
+      await TeacherProfileService().updateTeacherClassSection(
+        teacherId: teacherId,
+        className: _selectedClass!,
+        section: _selectedSection!,
+      );
+      // Optionally refresh profile
+      await fetchTeacherProfile();
+    } catch (e) {
+      // Error handled in service
+    } finally {
+      setState(() => _isUpdatingClassSection = false);
+    }
   }
 
   @override
@@ -165,7 +202,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
           ),
           const SizedBox(height: 16),
           Text(
-            '${teacherData?['name']}',
+            teacherName,
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -213,6 +250,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   }
 
   Widget _buildClassesSection() {
+    final List classesList = teacherData?['classes'] ?? [];
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -221,28 +259,108 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader('Classes Teaching', Icons.class_),
+            // Section header with edit icon
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildSectionHeader('Classes Teaching', Icons.class_),
+                IconButton(
+                  icon: Icon(_isAddingClass ? Icons.close : Icons.add, color: Colors.blue[700]),
+                  tooltip: _isAddingClass ? 'Cancel' : 'Add Class',
+                  onPressed: () {
+                    setState(() {
+                      _isAddingClass = !_isAddingClass;
+                      _newClass = null;
+                      _newSection = null;
+                    });
+                  },
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: List.generate(
-                teacherData?['classes'].length,
-                (index) => Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Text(
-                    teacherData?['classes'][index],
-                    style: TextStyle(color: Colors.blue.shade700),
-                  ),
+            // Show chips for all classes
+            if (classesList.isNotEmpty)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ...classesList.map<Widget>((cls) {
+                    final className = cls['class']?.toString() ?? '';
+                    final section = cls['section']?.toString() ?? '';
+                    return Chip(
+                      label: Text('Class $className - Section $section'),
+                      backgroundColor: Colors.blue.shade50,
+                      labelStyle: TextStyle(color: Colors.blue.shade700),
+                      deleteIcon: Icon(Icons.close, color: Colors.red),
+                      onDeleted: () async {
+                        final teacherId = await AuthService.getUserId();
+                        if (teacherId == null) return;
+                        await TeacherProfileService().removeTeacherClass(
+                          teacherId: teacherId,
+                          className: className,
+                          section: section,
+                        );
+                        await fetchTeacherProfile();
+                      },
+                    );
+                  }).toList(),
+                ],
+              ),
+            if (classesList.isEmpty)
+              const Text('No classes assigned yet.', style: TextStyle(color: Colors.grey)),
+            // Add class form
+            if (_isAddingClass)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Row(
+                  children: [
+                    DropdownButton<String>(
+                      value: _newClass,
+                      hint: const Text('Class'),
+                      items: _classes.map((c) => DropdownMenuItem(
+                        value: c,
+                        child: Text('Class $c'),
+                      )).toList(),
+                      onChanged: (val) => setState(() => _newClass = val),
+                    ),
+                    const SizedBox(width: 16),
+                    DropdownButton<String>(
+                      value: _newSection,
+                      hint: const Text('Section'),
+                      items: _sections.map((s) => DropdownMenuItem(
+                        value: s,
+                        child: Text('Section $s'),
+                      )).toList(),
+                      onChanged: (val) => setState(() => _newSection = val),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      onPressed: _newClass == null || _newSection == null
+                          ? null
+                          : () async {
+                              final teacherId = await AuthService.getUserId();
+                              if (teacherId == null) return;
+                              await TeacherProfileService().addTeacherClass(
+                                teacherId: teacherId,
+                                className: _newClass!,
+                                section: _newSection!,
+                              );
+                              setState(() {
+                                _isAddingClass = false;
+                                _newClass = null;
+                                _newSection = null;
+                              });
+                              await fetchTeacherProfile();
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[700],
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      ),
+                      child: const Text('Add'),
+                    ),
+                  ],
                 ),
               ),
-            ),
           ],
         ),
       ),
