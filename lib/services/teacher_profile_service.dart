@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
-class ProfileService {
+class TeacherProfileService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Fetch Teacher Profile

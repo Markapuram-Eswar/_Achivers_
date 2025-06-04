@@ -57,7 +57,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       });
       return;
     }
-    final profile = await ProfileService().getTeacherProfile(teacherId);
+    final profile = await TeacherProfileService().getTeacherProfile(teacherId);
     setState(() {
       teacherData = profile;
       isLoading = false;
