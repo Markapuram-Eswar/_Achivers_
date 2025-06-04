@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/ProgressService.dart';
 
 class ProgressPage extends StatefulWidget {
-  const ProgressPage({super.key});
+  final Map<String, dynamic> child;
+  const ProgressPage({super.key, required this.child});
 
   @override
   State<ProgressPage> createState() => _ProgressZonePageState();
@@ -18,22 +19,45 @@ class _ProgressZonePageState extends State<ProgressPage> {
   };
   List<Map<String, dynamic>> _achievements = [];
   bool _isLoading = true;
+  String? _error;
+
+  String get _studentRollNo {
+    return widget.child['rollNumber'] ?? widget.child['rollNo'] ?? widget.child['id'] ?? '';
+  }
+
+  String get _studentName {
+    return widget.child['name'] ?? widget.child['fullName'] ?? 'Unknown';
+  }
+
+  String get _studentClass {
+    return widget.child['class'] ?? '';
+  }
+
+  String get _studentSection {
+    return widget.child['section'] ?? '';
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadProgressData();
+    if (_studentRollNo.isEmpty) {
+      setState(() => _error = 'No student selected.');
+    } else {
+      _loadProgressData();
+    }
   }
 
   Future<void> _loadProgressData() async {
     try {
-      setState(() => _isLoading = true);
-      
-      // Load all data in parallel
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
       final results = await Future.wait([
-        _progressService.getProgressData(),
-        _progressService.getOverallProgress(),
-        _progressService.getRecentAchievements(),
+        _progressService.getProgressData(studentRollNo: _studentRollNo),
+        _progressService.getOverallProgress(studentRollNo: _studentRollNo),
+        _progressService.getRecentAchievements(studentRollNo: _studentRollNo),
       ]);
 
       if (mounted) {
@@ -47,19 +71,26 @@ class _ProgressZonePageState extends State<ProgressPage> {
     } catch (e) {
       print('Error loading progress data: $e');
       if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading progress: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        setState(() {
+          _isLoading = false;
+          _error = 'Error loading progress: ${e.toString()}';
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Progress Zone', style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.amber,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: Center(child: Text(_error!, style: const TextStyle(color: Colors.red))),
+      );
+    }
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
@@ -86,6 +117,20 @@ class _ProgressZonePageState extends State<ProgressPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Child details card
+              Card(
+                color: Colors.amber[50],
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                margin: const EdgeInsets.only(bottom: 16),
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Colors.amber,
+                    child: Icon(Icons.person, color: Colors.white),
+                  ),
+                  title: Text(_studentName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text('Roll No: $_studentRollNo\nClass: $_studentClass  Section: $_studentSection'),
+                ),
+              ),
               const Text(
                 'Your Learning Progress',
                 style: TextStyle(
@@ -142,7 +187,8 @@ class _ProgressZonePageState extends State<ProgressPage> {
                     LinearProgressIndicator(
                       value: _overallProgress['progress'],
                       backgroundColor: Colors.grey[200],
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
+                      valueColor:
+                          const AlwaysStoppedAnimation<Color>(Colors.amber),
                       minHeight: 10,
                       borderRadius: BorderRadius.circular(5),
                     ),
@@ -151,7 +197,7 @@ class _ProgressZonePageState extends State<ProgressPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${(_overallProgress['progress'] * 100).toInt()}% Completed',
+                          '	${(_overallProgress['progress'] * 100).toInt()}% Completed',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.amber,
@@ -189,7 +235,8 @@ class _ProgressZonePageState extends State<ProgressPage> {
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.emoji_events, color: Colors.white, size: 24),
+                          Icon(Icons.emoji_events,
+                              color: Colors.white, size: 24),
                           SizedBox(width: 8),
                           Text(
                             'Recent Achievements',
@@ -204,13 +251,15 @@ class _ProgressZonePageState extends State<ProgressPage> {
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: _achievements.map((achievement) => 
-                          _buildAchievementBadge(
-                            achievement['title'],
-                            achievement['subtitle'],
-                            achievement['icon'],
-                          ),
-                        ).toList(),
+                        children: _achievements
+                            .map(
+                              (achievement) => _buildAchievementBadge(
+                                achievement['title'],
+                                achievement['subtitle'],
+                                achievement['icon'],
+                              ),
+                            )
+                            .toList(),
                       ),
                     ],
                   ),

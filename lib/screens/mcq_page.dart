@@ -1,10 +1,20 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/mcq_scorePost_service.dart';
 import '../services/auth_service.dart';
 
+import '../services/TestService.dart';
+import '../services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 
 class McqPage extends StatefulWidget {
   final Map<String, dynamic> subjectData;
@@ -21,7 +31,7 @@ class McqPage extends StatefulWidget {
 }
 
 class McqPageState extends State<McqPage> {
-  late List<Map<String, dynamic>> _questions;
+  List<Map<String, dynamic>> _questions = []; // Initialize with empty list
   int _currentQuestionIndex = 0;
   List<int?> _selectedAnswers = [];
   bool _hasSubmitted = false;
@@ -31,9 +41,14 @@ class McqPageState extends State<McqPage> {
   final QuizService _quizService = QuizService();
   bool _isSavingResult = false;
 
+  bool _isLoading = true;
+  final TestService _testService = TestService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   @override
   void initState() {
     super.initState();
+
     _quizStartTime = DateTime.now();
     
     final mcqRaw = widget.topicData['data']?['mcq'];
@@ -120,11 +135,15 @@ class McqPageState extends State<McqPage> {
     ];
 
     _selectedAnswers = List.filled(_questions.length, null);
+
+    _loadQuestions();
+  }
   }
 
   bool get _allQuestionsAnswered {
-    return !_selectedAnswers.any((answer) => answer == null);
+    return _questions.isNotEmpty && !_selectedAnswers.any((answer) => answer == null);
   }
+
 
   void _submitQuiz() async {
     if (!_allQuestionsAnswered) {
@@ -135,12 +154,13 @@ class McqPageState extends State<McqPage> {
       return;
     }
 
-    setState(() {
-      _hasSubmitted = true;
+    try {
+      setState(() => _hasSubmitted = true);
       _showReview = false;
       _score = 0;
       _isSavingResult = true;
 
+      // Calculate score
       for (int i = 0; i < _questions.length; i++) {
         final correctAnswer = _questions[i]['correctAnswer'] as int? ?? 0;
         if (_selectedAnswers[i] == correctAnswer) {
@@ -209,6 +229,7 @@ class McqPageState extends State<McqPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Failed to save quiz result. Please try again.'),
+
             backgroundColor: Colors.red,
           ),
         );
@@ -225,6 +246,7 @@ class McqPageState extends State<McqPage> {
         ),
       );
       print('Error saving quiz result: $e');
+
     }
   }
 
@@ -510,6 +532,60 @@ class McqPageState extends State<McqPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            '${widget.topicData['title']} MCQs',
+            style: const TextStyle(color: Colors.white),
+          ),
+          backgroundColor: widget.subjectData['color'],
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_questions.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            '${widget.topicData['title']} MCQs',
+            style: const TextStyle(color: Colors.white),
+          ),
+          backgroundColor: widget.subjectData['color'],
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 48,
+                color: Colors.red,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No questions available for this test',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _loadQuestions,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -881,14 +957,43 @@ class McqPageState extends State<McqPage> {
 
   Widget _buildCurrentQuestion() {
     final question = _questions[_currentQuestionIndex];
+
     final List<String> options = (question['options'] as List<dynamic>?)
         ?.map((option) => option?.toString() ?? '')
         .toList() ?? [];
     final int correctAnswer = question['correctAnswer'] as int? ?? 0;
 
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Question header with type and section
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: widget.subjectData['color'].withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                questionType == 'multipleChoice' ? Icons.check_circle_outline : Icons.radio_button_checked,
+                size: 16,
+                color: widget.subjectData['color'],
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${questionType.toUpperCase()} - Section $section',
+                style: TextStyle(
+                  color: widget.subjectData['color'],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Question text
         Text(
           question['question']?.toString() ?? 'No question available',
           style: const TextStyle(
@@ -897,6 +1002,7 @@ class McqPageState extends State<McqPage> {
           ),
         ),
         const SizedBox(height: 20),
+        // Options
         ...List.generate(options.length, (index) {
           final isSelected = _selectedAnswers[_currentQuestionIndex] == index;
           final isCorrect = index == correctAnswer;
@@ -924,7 +1030,7 @@ class McqPageState extends State<McqPage> {
                 : Colors.grey.withOpacity(0.1);
             borderColor =
                 isSelected ? widget.subjectData['color'] : Colors.grey;
-          }
+
 
           return GestureDetector(
             onTap: _hasSubmitted
@@ -970,8 +1076,7 @@ class McqPageState extends State<McqPage> {
                       options[index],
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -1001,6 +1106,7 @@ class McqPageState extends State<McqPage> {
                       fontSize: 16,
                       color: Colors.blue,
                     ),
+
                   ),
                   const SizedBox(height: 8),
                   Text(
