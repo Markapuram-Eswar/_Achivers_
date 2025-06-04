@@ -24,6 +24,7 @@ class _TextbookPageState extends State<TextbookPage> {
   bool _isSpeaking = false;
   int? _currentlySpeakingIndex;
   double _fontSize = 16.0;
+  String _selectedVoice = 'female'; // 'male' or 'female'
 
   final List<Map<String, dynamic>> _content = [
     {
@@ -93,8 +94,14 @@ class _TextbookPageState extends State<TextbookPage> {
   Future<void> _initTts() async {
     try {
       await _flutterTts.setLanguage('en-US');
-      await _flutterTts.setPitch(1.0);
-      await _flutterTts.setSpeechRate(0.5);
+      // Set voice parameters based on selection
+      if (_selectedVoice == 'male') {
+        await _flutterTts.setPitch(0.8);
+        await _flutterTts.setSpeechRate(0.45);
+      } else {
+        await _flutterTts.setPitch(1.0);
+        await _flutterTts.setSpeechRate(0.5);
+      }
 
       _flutterTts.setCompletionHandler(() {
         if (mounted) {
@@ -138,7 +145,10 @@ class _TextbookPageState extends State<TextbookPage> {
             _isSpeaking = false;
             _currentlySpeakingIndex = null;
           });
-          if (_currentlySpeakingIndex == index) return;
+        }
+        // If clicking the same item that's currently speaking, just stop it
+        if (_currentlySpeakingIndex == index) {
+          return;
         }
       }
 
@@ -190,6 +200,47 @@ class _TextbookPageState extends State<TextbookPage> {
         backgroundColor: Colors.green[700],
         elevation: 0,
         actions: [
+          // Voice selection dropdown
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: DropdownButton<String>(
+              value: _selectedVoice,
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+              dropdownColor: Colors.green[700],
+              style: GoogleFonts.poppins(color: Colors.white),
+              underline: Container(height: 0),
+              items: [
+                DropdownMenuItem(
+                  value: 'female',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.female, color: Colors.pink),
+                      const SizedBox(width: 8),
+                      Text('Female Voice', style: GoogleFonts.poppins()),
+                    ],
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'male',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.male, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text('Male Voice', style: GoogleFonts.poppins()),
+                    ],
+                  ),
+                ),
+              ],
+              onChanged: (String? newValue) async {
+                if (newValue != null && newValue != _selectedVoice) {
+                  setState(() {
+                    _selectedVoice = newValue;
+                  });
+                  await _initTts(); // Reinitialize TTS with new voice settings
+                }
+              },
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.text_decrease),
             onPressed: () {
