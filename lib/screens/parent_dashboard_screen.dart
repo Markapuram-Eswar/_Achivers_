@@ -3,8 +3,16 @@ import 'package:flutter/material.dart';
 import 'leave_application_screen.dart';
 import 'contact_teacher_screen.dart';
 import 'parent_profile_page.dart';
-import 'progress_page.dart';
 import 'fee_payments_screen.dart';
+
+void main() {
+  runApp(
+    const MaterialApp(
+      home: ParentDashboardScreen(),
+      debugShowCheckedModeBanner: false,
+    ),
+  );
+}
 
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
@@ -82,6 +90,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               _buildQuickActions(context),
               const SizedBox(height: 20),
               _buildAttendanceAndGrades(),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -185,7 +194,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               ),
             ),
             _buildActionButton(
-              'Reports\nZone',
+              'Progress',
               Icons.assessment_rounded,
               Colors.purple[400]!,
               onTap: () => Navigator.push(
@@ -210,7 +219,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         ),
       ],
     );
-  };
+  }
 
   Widget _buildActionButton(
     String title,

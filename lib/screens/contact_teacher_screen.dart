@@ -1,5 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+
+void main() {
+  runApp(
+    const MaterialApp(
+      home: ContactTeacherScreen(),
+      debugShowCheckedModeBanner: false,
+    ),
+  );
+}
 
 class ContactTeacherScreen extends StatelessWidget {
   final bool showExitConfirmation;
@@ -127,28 +137,27 @@ class ContactTeacherScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(teacher['subject']!),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _buildContactButton(
-                        icon: Icons.connect_without_contact,
-                        label: 'WhatsApp',
-                        backgroundColor: Color(0xFF25D366), // WhatsApp green color
-                        onPressed: () async {
-                          String phoneNumber =
-                              teacher['phone']!; // e.g., '918106645476'
-                          // Remove '+' if present
-                          if (phoneNumber.startsWith('+')) {
-                            phoneNumber = phoneNumber.substring(1);
-                          }
-                          final message =
-                              'Hello ${teacher['name']}, I would like to connect with you regarding ${teacher['subject']}.';
-                          final whatsappUrl =
-                              'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}';
-                          await launchUrlString(whatsappUrl,
-                              mode: LaunchMode.externalApplication);
-                        },
-                      ),
-                    ],
+                  Align(
+                    alignment:
+                        Alignment.centerRight, // Move button to the right
+                    child: _buildContactButton(
+                      icon: Icons.connect_without_contact,
+                      label: 'WhatsApp',
+                      backgroundColor:
+                          Color(0xFF25D366), // WhatsApp green color
+                      onPressed: () async {
+                        String phoneNumber = teacher['phone']!;
+                        if (phoneNumber.startsWith('+')) {
+                          phoneNumber = phoneNumber.substring(1);
+                        }
+                        final message =
+                            'Hello ${teacher['name']}, I would like to connect with you regarding ${teacher['subject']}.';
+                        final whatsappUrl =
+                            'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}';
+                        await launchUrlString(whatsappUrl,
+                            mode: LaunchMode.externalApplication);
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -166,13 +175,25 @@ class ContactTeacherScreen extends StatelessWidget {
     Color? backgroundColor,
   }) {
     return ElevatedButton.icon(
-      icon: Icon(icon, size: 20),
-      label: Text(label),
+      icon: FaIcon(FontAwesomeIcons.whatsapp,
+          size: 26, color: Colors.white), // WhatsApp icon
+      label: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+      ),
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: backgroundColor ?? Colors.blue[900],
+        backgroundColor: Colors.green[600], // WhatsApp green
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        minimumSize: const Size(140, 52),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        elevation: 2,
       ),
     );
   }

@@ -60,13 +60,10 @@ dependencies:
   firebase_storage: ^12.4.6
   open_filex: ^4.3.2
   syncfusion_flutter_pdfviewer: ^29.2.7
-<<<<<<< HEAD
+  cached_network_image: ^3.4.1
   pdf: ^3.10.7
   share_plus: ^7.2.1
-=======
-  cached_network_image: ^3.4.1
->>>>>>> a08e0b28f2497a8c78a16011003c37b182800da2
-
+  font_awesome_flutter: ^10.8.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -93,13 +90,6 @@ flutter:
     - assets/videos/park_theme.mp4
     - assets/images/logo.png
     - assets/images/avatar-girl-svgrepo-com.svg
-<<<<<<< HEAD
-    - assets/videos/intro1.mp4
-    - assets/videos/tr1.mp4
-    - assets/videos/tr2.mp4
-    - assets/videos/tr10.mp4
-=======
->>>>>>> a08e0b28f2497a8c78a16011003c37b182800da2
     - assets/videos/3,4,5,6.mp4
     - assets/videos/22.mp4
     - assets/videos/27.mp4
