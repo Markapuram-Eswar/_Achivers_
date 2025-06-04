@@ -202,7 +202,10 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                   fontWeight: FontWeight.w600,
                                 ),
                                 formatButtonTextStyle: GoogleFonts.poppins(),
+                                formatButtonVisible: false,
+                                titleCentered: true,
                               ),
+                              calendarFormat: CalendarFormat.month,
                               calendarBuilders: CalendarBuilders(
                                 defaultBuilder: (context, date, _) {
                                   final color = _getStatusColor(date);
