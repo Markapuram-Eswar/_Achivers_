@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../services/AttendanceService.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AttendanceCalendarPage extends StatefulWidget {
   const AttendanceCalendarPage({super.key});
@@ -203,6 +204,8 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                               ),
                             ),
                           ),
+                          const SizedBox(height: 16),
+                          const LegendRow(),
                         ],
                       ),
                     ),
@@ -233,7 +236,7 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                         );
                       },
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
@@ -251,10 +254,10 @@ class LegendRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        LegendItem(color: Colors.green.shade400, label: 'Present'),
-        LegendItem(color: Colors.red.shade400, label: 'Absent'),
-        LegendItem(color: Colors.blue.shade400, label: 'Holiday'),
+      children: const [
+        LegendItem(color: Colors.green, label: 'Present'),
+        LegendItem(color: Colors.red, label: 'Absent'),
+        LegendItem(color: Colors.blue, label: 'Holiday'),
       ],
     );
   }

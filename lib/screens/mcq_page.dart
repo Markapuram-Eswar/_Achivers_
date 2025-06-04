@@ -1,17 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
 import '../services/TestService.dart';
 import '../services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-=======
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:share_plus/share_plus.dart';
->>>>>>> d38cca5376f68fc50ad9a1ad83f4a66241ab6b15
 
 class McqPage extends StatefulWidget {
   final Map<String, dynamic> subjectData;
