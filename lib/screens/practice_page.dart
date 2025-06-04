@@ -5,6 +5,12 @@ import '../services/ProfileService.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../services/text_book_service.dart';
 
+void main() {
+  runApp(const MaterialApp(
+    home: PracticePage(),
+  ));
+}
+
 class PracticePage extends StatefulWidget {
   const PracticePage({super.key});
 
@@ -44,6 +50,7 @@ class PracticePageState extends State<PracticePage> {
       'color': Colors.purple,
     },
   ];
+
 
   @override
   void initState() {
@@ -200,90 +207,6 @@ Color _getSubjectColor(String subject) {
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Recent practice section
-            const Text(
-              'Recent Practice',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 140,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _recentPractice.take(2).length,
-                itemBuilder: (context, index) {
-                  final item = _recentPractice[index];
-                  return Container(
-                    width: 200,
-                    margin: const EdgeInsets.only(right: 16),
-                    decoration: BoxDecoration(
-                      color: item['color'].withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: item['color'].withOpacity(0.3)),
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item['title'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            Text(
-                              item['subject'],
-                              style: TextStyle(
-                                color: item['color'],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              item['date'],
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: item['color'],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                item['score'],
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
               ),
             ),
             const SizedBox(height: 24),
@@ -453,7 +376,9 @@ Color _getSubjectColor(String subject) {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           LinearProgressIndicator(
-                            value: item['progress'],
+                            value: (item['chapters'] > 0)
+                                ? (item['completed'] / item['chapters'])
+                                : 0.0,
                             backgroundColor: Colors.grey[200],
                             valueColor: 
                                 AlwaysStoppedAnimation<Color>(item['color']),
@@ -462,7 +387,7 @@ Color _getSubjectColor(String subject) {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '${item['completed']} / ${item['questions']} questions completed',
+                            '${item['completed']} / ${item['chapters']} chapters completed',
                             style: const TextStyle(
                               fontSize: 12,
                               color: Colors.grey,
@@ -518,3 +443,4 @@ Color _getSubjectColor(String subject) {
     );
   }
 }
+

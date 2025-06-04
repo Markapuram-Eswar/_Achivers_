@@ -1,68 +1,49 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
-class ScheduleEventScreen extends StatefulWidget {
-  const ScheduleEventScreen({super.key});
-
-  @override
-  State<ScheduleEventScreen> createState() => _ScheduleEventScreenState();
+void main() {
+  runApp(
+    const MaterialApp(
+      home: SendMessageScreen(),
+      debugShowCheckedModeBanner: false,
+    ),
+  );
 }
 
-class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _meetingUrlController = TextEditingController();
-  final TextEditingController _participantsController = TextEditingController();
+class SendMessageScreen extends StatefulWidget {
+  const SendMessageScreen({super.key});
 
-  DateTime _selectedDate = DateTime.now();
-  TimeOfDay _selectedTime = TimeOfDay.now();
-  String _selectedEventType = 'Parent-Teacher Meeting';
-  final List<String> _eventTypes = [
-    'Parent-Teacher Meeting',
-    'Staff Meeting',
-    'Workshop',
-    'Other'
+  @override
+  State<SendMessageScreen> createState() => _SendMessageScreenState();
+}
+
+class _SendMessageScreenState extends State<SendMessageScreen> {
+  final _formKey = GlobalKey<FormState>();
+
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _messageController = TextEditingController();
+
+  String? _selectedClass;
+  String? _selectedSection;
+  List<String> _selectedStudents = [];
+  String _recipientType = 'Both';
+
+  final List<String> _classes = ['Class 1', 'Class 2', 'Class 3'];
+  final List<String> _sections = ['A', 'B', 'C'];
+  final List<String> _allStudents = [
+    'John Doe',
+    'Jane Smith',
+    'Alice Johnson',
+    'Bob Brown',
   ];
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime(DateTime.now().year + 1),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
-    }
-  }
-
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime,
-    );
-    if (picked != null && picked != _selectedTime) {
-      setState(() {
-        _selectedTime = picked;
-      });
-    }
-  }
-
-  void _scheduleEvent() {
+  void _sendMessage() {
     if (_formKey.currentState!.validate()) {
-      // Show success message
-      /* Backend TODO: Schedule event via backend (API call, database write) */
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$_selectedEventType scheduled successfully!'),
+          content: Text('Message sent to $_recipientType successfully!'),
           backgroundColor: Colors.green,
         ),
       );
-
-      // Navigate back after a short delay
       Future.delayed(const Duration(seconds: 1), () {
         Navigator.pop(context);
       });
@@ -72,17 +53,17 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
   @override
   void dispose() {
     _titleController.dispose();
-    _descriptionController.dispose();
-    _meetingUrlController.dispose();
-    _participantsController.dispose();
+    _messageController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    bool allSelected = _selectedStudents.length == _allStudents.length;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Schedule Event'),
+        title: const Text('Send Message'),
         backgroundColor: Colors.blue[900],
         foregroundColor: Colors.white,
       ),
@@ -93,174 +74,154 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Event Type Dropdown
+              // Class Dropdown
               const Text(
-                'Event Type',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                'Class',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedEventType,
-                items: _eventTypes.map((type) {
-                  return DropdownMenuItem(
-                    value: type,
-                    child: Text(type),
-                  );
+                value: _selectedClass,
+                items: _classes.map((cls) {
+                  return DropdownMenuItem(value: cls, child: Text(cls));
                 }).toList(),
                 onChanged: (value) {
-                  setState(() {
-                    _selectedEventType = value!;
-                  });
+                  setState(() => _selectedClass = value);
                 },
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12),
                 ),
+                validator: (value) =>
+                    value == null ? 'Please select a class' : null,
               ),
               const SizedBox(height: 16),
 
-              // Title Field
+              // Section Dropdown
+              const Text(
+                'Section',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _selectedSection,
+                items: _sections.map((sec) {
+                  return DropdownMenuItem(value: sec, child: Text(sec));
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => _selectedSection = value);
+                },
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                ),
+                validator: (value) =>
+                    value == null ? 'Please select a section' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Student Multi-select (basic version using checkboxes)
+              const Text(
+                'Select Students',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Checkbox(
+                      value: allSelected,
+                      onChanged: (checked) {
+                        setState(() {
+                          if (checked == true) {
+                            _selectedStudents = List.from(_allStudents);
+                          } else {
+                            _selectedStudents.clear();
+                          }
+                        });
+                      },
+                    ),
+                    const Text(
+                      'Select All',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              ..._allStudents.map((student) {
+                return CheckboxListTile(
+                  title: Text(student),
+                  value: _selectedStudents.contains(student),
+                  onChanged: (isChecked) {
+                    setState(() {
+                      if (isChecked == true) {
+                        _selectedStudents.add(student);
+                      } else {
+                        _selectedStudents.remove(student);
+                      }
+                    });
+                  },
+                );
+              }),
+              const SizedBox(height: 16),
+
+              // Recipient type: Radio buttons
+              const Text(
+                'Send To',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Column(
+                children: ['Only Students', 'Only Parents', 'Both'].map((type) {
+                  return RadioListTile(
+                    title: Text(type),
+                    value: type,
+                    groupValue: _recipientType,
+                    onChanged: (value) {
+                      setState(() => _recipientType = value!);
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+
+              // Message Title
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
-                  labelText: 'Event Title',
+                  labelText: 'Message Title',
                   border: OutlineInputBorder(),
-                  hintText: 'E.g., Parent-Teacher Meeting - John Doe',
+                  hintText: 'E.g., Exam Reminder',
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter an event title';
-                  }
-                  return null;
-                },
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Please enter title'
+                    : null,
               ),
               const SizedBox(height: 16),
 
-              // Date and Time Picker
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Date', style: TextStyle(fontSize: 14)),
-                        const SizedBox(height: 4),
-                        InkWell(
-                          onTap: () => _selectDate(context),
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(DateFormat('MMM d, y')
-                                    .format(_selectedDate)),
-                                const Icon(Icons.calendar_today, size: 20),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Time', style: TextStyle(fontSize: 14)),
-                        const SizedBox(height: 4),
-                        InkWell(
-                          onTap: () => _selectTime(context),
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(_selectedTime.format(context)),
-                                const Icon(Icons.access_time, size: 20),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Meeting URL
+              // Message Body
               TextFormField(
-                controller: _meetingUrlController,
-                decoration: const InputDecoration(
-                  labelText: 'Meeting URL',
-                  border: OutlineInputBorder(),
-                  hintText: 'https://meet.google.com/xxx-xxxx-xxx',
-                  prefixIcon: Icon(Icons.link),
-                ),
-                keyboardType: TextInputType.url,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a meeting URL';
-                  }
-                  if (!Uri.tryParse(value)!.hasAbsolutePath) {
-                    return 'Please enter a valid URL';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Participants
-              TextFormField(
-                controller: _participantsController,
-                decoration: const InputDecoration(
-                  labelText: 'Participants',
-                  border: OutlineInputBorder(),
-                  hintText: 'Enter email addresses, separated by commas',
-                  prefixIcon: Icon(Icons.people),
-                ),
-                maxLines: 1,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter at least one participant';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Description
-              const Text(
-                'Description',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _descriptionController,
+                controller: _messageController,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                  hintText: 'Enter event details...',
+                  labelText: 'Message',
+                  hintText: 'Type your message here...',
                   border: OutlineInputBorder(),
                 ),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Please enter message'
+                    : null,
               ),
               const SizedBox(height: 24),
 
-              // Schedule Button
+              // Send Button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _scheduleEvent,
+                  onPressed: _sendMessage,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     shape: RoundedRectangleBorder(
@@ -268,7 +229,7 @@ class _ScheduleEventScreenState extends State<ScheduleEventScreen> {
                     ),
                   ),
                   child: const Text(
-                    'Schedule Event',
+                    'Send Message',
                     style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 ),

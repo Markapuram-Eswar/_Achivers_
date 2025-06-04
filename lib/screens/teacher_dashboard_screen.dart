@@ -110,9 +110,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
               const SizedBox(height: 20),
               _buildLeaveAppointments(context), // Add this new section
               const SizedBox(height: 20),
-              _buildUpcomingClasses(),
-              const SizedBox(height: 20),
-              _buildStudentStats(),
             ],
           ),
         ),
@@ -191,7 +188,22 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           },
         ),
 
-        // Second Row
+        // Second Row - Send Message
+        _buildActionCard(
+          'Send Message',
+          Icons.message,
+          Colors.blue[400]!,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SendMessageScreen(),
+              ),
+            );
+          },
+        ),
+        
+        // Third Row - Schedule Event
         _buildActionCard(
           'Schedule Event',
           Icons.event_available,
@@ -200,7 +212,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const ScheduleEventScreen(),
+                builder: (context) => const SendMessageScreen(),
               ),
             );
           },
@@ -274,127 +286,6 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildUpcomingClasses() {
-    final classes = [
-      {
-        'subject': 'Mathematics',
-        'class': '10-A',
-        'time': '9:00 AM',
-        'room': '101'
-      },
-      {'subject': 'Physics', 'class': '9-B', 'time': '10:30 AM', 'room': '102'},
-      {
-        'subject': 'Chemistry',
-        'class': '11-A',
-        'time': '12:00 PM',
-        'room': '103'
-      },
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Upcoming Classes',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 15),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: classes.length,
-          itemBuilder: (context, index) {
-            final classInfo = classes[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(Icons.class_, color: Colors.blue[700]),
-                ),
-                title: Text('${classInfo['subject']} - ${classInfo['class']}'),
-                subtitle:
-                    Text('Room ${classInfo['room']} • ${classInfo['time']}'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStudentStats() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Class Statistics',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 15),
-        Row(
-          children: [
-            Expanded(
-              child: _buildStatCard('Total Students', '150', Icons.people),
-            ),
-            const SizedBox(width: 15),
-            Expanded(
-              child: _buildStatCard('Attendance', '92%', Icons.timeline),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey[300]!,
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: Colors.blue[700], size: 30),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            title,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-            ),
-          ),
-        ],
       ),
     );
   }
