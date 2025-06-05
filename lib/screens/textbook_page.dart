@@ -1,11 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'dart:io' show Platform; // For platform detection
-import 'package:flutter/foundation.dart' show kIsWeb; // For web detection
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../services/textbook_service.dart';
+import '../models/textbook_content.dart';
 
-// Main function to set up MaterialApp
 void main() {
   runApp(const MyApp());
 }
@@ -19,6 +20,12 @@ class MyApp extends StatelessWidget {
       title: 'Biology Textbook',
       theme: ThemeData(
         primarySwatch: Colors.green,
+        scaffoldBackgroundColor: Colors.grey[100],
+        cardTheme: CardThemeData(
+          elevation: 4,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        ),
       ),
       home: const TextbookPage(),
       debugShowCheckedModeBanner: false,
@@ -35,112 +42,102 @@ class TextbookPage extends StatefulWidget {
 
 class _TextbookPageState extends State<TextbookPage> {
   final FlutterTts _flutterTts = FlutterTts();
+  final TextbookService _textbookService = TextbookService();
   bool _isTtsInitialized = false;
   bool _isSpeaking = false;
   int? _currentlySpeakingIndex;
-  String _selectedVoice = 'female'; // Default voice
-  String _selectedLanguage = 'ta-IN'; // Default to Tamil
+  String _selectedVoice = 'female';
+  String _selectedLanguage = 'ta-IN';
   List<dynamic> _availableVoices = [];
   Map<String, String>? _selectedVoiceParams;
-  bool _isWebPlatform = kIsWeb; // Detect if running on web
+  bool _isWebPlatform = kIsWeb;
 
-  // Supported languages
   final Map<String, String> _languages = {
     'ta-IN': 'Tamil (India)',
     'te-IN': 'Telugu (India)',
     'ml-IN': 'Malayalam (India)',
   };
 
-  // Map locale to language name in _content
   final Map<String, String> _localeToLanguage = {
     'ta-IN': 'Tamil',
     'te-IN': 'Telugu',
     'ml-IN': 'Malayalam',
   };
 
-  // Content list for multiple languages
-  final List<Map<String, dynamic>> _content = [
-    {
-      "language": "Tamil",
-      "data": [
-        {
-          "heading": "உயிரியல் அறிமுகம்",
-          "paragraph":
-              "உயிரியல் என்பது உயிருள்ள உயிரினங்களைப் பற்றிய ஆய்வாகும். இது வாழ்க்கையின் பல அம்சங்களை உள்ளடக்கியது, இதில் அமைப்பு, செயல்பாடு, வளர்ச்சி, பரிணாமம் மற்றும் பகிர்வு அடங்கும்.",
-          "image":
-              "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80",
-        },
-        {
-          "heading": "செல் அமைப்பு",
-          "paragraph":
-              "செல்ல்கள் வாழ்க்கையின் அடிப்படை அலகுகள். அனைத்து உயிரினங்களும் செல்ல்கள் கொண்டு உருவாகியவை, அவை உயிர் வாழ தேவையான முக்கிய செயல்களைச் செய்கின்றன.",
-          "image": null,
-        },
-        {
-          "heading": "மரபியல்",
-          "paragraph":
-              "மரபியல் என்பது உயிரினங்களில் மரபியல் மற்றும் வேறுபாடுகளைப் பற்றிய ஆய்வாகும். இது பண்புகள் பெற்றோர் மூலம் பிள்ளைகளுக்குப் பிற்பற்றப்படுவது எப்படி என்பதை விளக்குகிறது.",
-          "image": null,
-        },
-      ],
-    },
-    {
-      "language": "Telugu",
-      "data": [
-        {
-          "heading": "జీవశాస్త్ర పరిచయం",
-          "paragraph":
-              "జీవశాస్త్రం అనేది జీవుల అధ్యయనం. ఇది నిర్మాణం, ఫంక్షన్, వృద్ధి, పరిణామం మరియు పంపిణీ వంటి జీవితం యొక్క వివిధ కోణాలను కవర్ చేస్తుంది.",
-          "image":
-              "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80",
-        },
-        {
-          "heading": "కణ నిర్మాణం",
-          "paragraph":
-              "కణాలు అనేవి జీవితం యొక్క మౌలికమైన అంకాలు. అన్ని జీవులు కణాల నుండి ఏర్పడతాయి మరియు అవి జీవించడానికి అవసరమైన ముఖ్యమైన పనులను నిర్వహిస్తాయి.",
-          "image": null,
-        },
-        {
-          "heading": "జన్యుపరంపరశాస్త్రం",
-          "paragraph":
-              "జన్యుపరంపరశాస్త్రం అనేది వారసత్వం మరియు జీవుల్లో వైవిధ్యాన్ని అధ్యయనం చేస్తుంది. ఇది లక్షణాలు తల్లిదండ్రుల నుండి పిల్లలకు ఎలా బదిలీ అవుతాయో వివరిస్తుంది.",
-          "image": null,
-        },
-      ],
-    },
-    {
-      "language": "Malayalam",
-      "data": [
-        {
-          "heading": "ജീവശാസ്ത്രത്തിന് പരിചയം",
-          "paragraph":
-              "ജീവശാസ്ത്രം എന്നത് ജീവനുള്ള ജീവികളെ കുറിച്ചുള്ള പഠനമാണ്. ഇതിൽ ഘടന, പ്രവർത്തനം, വളർച്ച, പരിണാമം, വിതരണം തുടങ്ങിയവ ഉൾപ്പെടുന്നു.",
-          "image":
-              "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80",
-        },
-        {
-          "heading": "കോശഘടന",
-          "paragraph":
-              "കോശങ്ങൾ ജീവന്റെ അടിസ്ഥാന ഘടകങ്ങളാണ്. എല്ലാ ജീവനുകളും കോശങ്ങളാൽ നിർമ്മിതമാണ്, അവ ജീവൻ നിലനിർത്തുന്നതിനാവശ്യമായ അടിസ്ഥാന പ്രവർത്തനങ്ങൾ നടത്തുന്നു.",
-          "image": null,
-        },
-        {
-          "heading": "ജനിതശാസ്ത്രം",
-          "paragraph":
-              "ജനിതശാസ്ത്രം എന്നത് ജീവികളിൽ മാതാവിൽ നിന്ന് മക്കൾക്ക് സ്വഭാവങ്ങൾ എങ്ങനെ പകരപ്പെടുന്നു എന്നതുമായി ബന്ധപ്പെട്ട പഠനമാണ്.",
-          "image": null,
-        },
-      ],
-    },
-  ];
+  List<TextbookContent> _content = [];
+  bool _isLoading = false;
+  String _errorMessage = '';
 
   @override
   void initState() {
     super.initState();
     _loadPreferences();
     if (!_isWebPlatform) {
-      _initTts(); // Skip TTS initialization on web
+      _initTts();
     }
+    _fetchContent();
+  }
+
+  Future<void> _fetchContent() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      // Try loading from cache first
+      final cachedContent = await _loadCachedContent();
+      if (cachedContent != null && cachedContent.isNotEmpty) {
+        setState(() {
+          _content = cachedContent;
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Fetch from service
+      final content = await _textbookService.fetchTextbookContent(
+        language: _selectedLanguage,
+      );
+
+      if (content.isEmpty) {
+        throw Exception('No content available for $_selectedLanguage');
+      }
+
+      await _cacheContent(content);
+
+      if (mounted) {
+        setState(() {
+          _content = content;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load content: $e';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _cacheContent(List<TextbookContent> content) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('cachedContent_$_selectedLanguage',
+        jsonEncode(content.map((c) => c.toJson()).toList()));
+  }
+
+  Future<List<TextbookContent>?> _loadCachedContent() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cached = prefs.getString('cachedContent_$_selectedLanguage');
+    if (cached != null) {
+      final List<dynamic> decoded = jsonDecode(cached);
+      return decoded.map((json) => TextbookContent.fromJson(json)).toList();
+    }
+    return null;
   }
 
   Future<void> _loadPreferences() async {
@@ -148,13 +145,16 @@ class _TextbookPageState extends State<TextbookPage> {
     final savedLanguage = prefs.getString('selectedLanguage') ?? 'ta-IN';
     final savedVoice = prefs.getString('selectedVoice') ?? 'female';
 
-    final languageName = _localeToLanguage[savedLanguage];
-    final hasContent = _content.any((lang) => lang['language'] == languageName);
-
     setState(() {
-      _selectedLanguage = hasContent ? savedLanguage : 'ta-IN';
+      _selectedLanguage = savedLanguage;
       _selectedVoice = savedVoice;
     });
+
+    // Fetch content to validate language
+    final cachedContent = await _loadCachedContent();
+    final hasContent = cachedContent
+            ?.any((c) => c.language == _localeToLanguage[savedLanguage]) ??
+        false;
 
     if (!hasContent && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -165,6 +165,11 @@ class _TextbookPageState extends State<TextbookPage> {
           duration: const Duration(seconds: 5),
         ),
       );
+      setState(() {
+        _selectedLanguage = 'ta-IN';
+      });
+      await _savePreferences(_selectedVoice, 'ta-IN');
+      await _fetchContent();
     }
   }
 
@@ -175,65 +180,63 @@ class _TextbookPageState extends State<TextbookPage> {
   }
 
   Future<void> _initTts() async {
-    if (_isWebPlatform) return; // Skip TTS on web
+    if (_isWebPlatform) return;
 
     try {
       await _flutterTts.setLanguage(_selectedLanguage);
       _availableVoices = await _flutterTts.getVoices;
 
       if (_availableVoices.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No voices available on this device')),
-          );
-        }
-        return;
-      }
-
-      _selectedVoiceParams = _pickVoice(_selectedVoice, _selectedLanguage);
-      if (_selectedVoiceParams != null) {
+        // Fallback to en-US if no voices are available
+        await _flutterTts.setLanguage('en-US');
+        _selectedVoiceParams = {'name': 'default', 'locale': 'en-US'};
         await _flutterTts.setVoice(_selectedVoiceParams!);
-      } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                  'No $_selectedVoice voice available for ${_languages[_selectedLanguage] ?? _selectedLanguage}'),
+                'No voices available for ${_languages[_selectedLanguage] ?? _selectedLanguage}. Using English voice.',
+              ),
+            ),
+          );
+        }
+      } else {
+        _selectedVoiceParams = _pickVoice(_selectedVoice, _selectedLanguage);
+        if (_selectedVoiceParams != null) {
+          await _flutterTts.setVoice(_selectedVoiceParams!);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'No $_selectedVoice voice available for ${_languages[_selectedLanguage] ?? _selectedLanguage}',
+              ),
             ),
           );
         }
       }
 
-      if (_selectedVoice == 'male') {
-        await _flutterTts.setPitch(0.9);
-        await _flutterTts.setSpeechRate(0.5);
-      } else {
-        await _flutterTts.setPitch(1.1);
-        await _flutterTts.setSpeechRate(0.5);
-      }
-
+      await _flutterTts.setPitch(_selectedVoice == 'male' ? 0.9 : 1.1);
+      await _flutterTts.setSpeechRate(0.5);
       await _flutterTts.setVolume(1.0);
 
       _flutterTts.setCompletionHandler(() {
         if (mounted) {
           setState(() {
-            _currentlySpeakingIndex = null;
             _isSpeaking = false;
+            _currentlySpeakingIndex = null;
           });
         }
       });
 
       _flutterTts.setErrorHandler((msg) {
-        if (mounted) {
+        if (mounted && !msg.contains('interrupted')) {
           setState(() {
             _isSpeaking = false;
             _currentlySpeakingIndex = null;
           });
-          if (!msg.contains('interrupted')) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('TTS Error: $msg')),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('TTS Error: $msg')),
+          );
         }
       });
 
@@ -302,13 +305,11 @@ class _TextbookPageState extends State<TextbookPage> {
     try {
       if (_isSpeaking) {
         await _flutterTts.stop();
-        if (mounted) {
+        if (_currentlySpeakingIndex == index) {
           setState(() {
             _isSpeaking = false;
             _currentlySpeakingIndex = null;
           });
-        }
-        if (_currentlySpeakingIndex == index) {
           return;
         }
       }
@@ -340,10 +341,7 @@ class _TextbookPageState extends State<TextbookPage> {
           _currentlySpeakingIndex = null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            duration: const Duration(seconds: 3),
-          ),
+          SnackBar(content: Text('TTS Error: $e')),
         );
       }
     }
@@ -359,310 +357,411 @@ class _TextbookPageState extends State<TextbookPage> {
 
   @override
   Widget build(BuildContext context) {
-    final languageName = _localeToLanguage[_selectedLanguage] ?? 'Tamil';
-    final selectedContent = _content.firstWhere(
-      (lang) => lang['language'] == languageName,
-      orElse: () => _content.first,
-    );
-    final List<Map<String, dynamic>> sections = selectedContent['data'];
-
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Biology Textbook',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+      appBar: _buildAppBar(),
+      body: _buildBody(),
+    );
+  }
+
+  AppBar _buildAppBar() {
+    return AppBar(
+      title: Text(
+        'Biology Textbook',
+        style: GoogleFonts.poppins(
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      backgroundColor: Colors.green[700],
+      elevation: 0,
+      actions: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          child: DropdownButton<String>(
+            value: _selectedLanguage,
+            icon: const Icon(Icons.language, color: Colors.white),
+            dropdownColor: Colors.green[700],
+            style: GoogleFonts.poppins(color: Colors.white),
+            underline: Container(height: 0),
+            items: _languages.entries.map((entry) {
+              return DropdownMenuItem<String>(
+                value: entry.key,
+                child: Row(
+                  children: [
+                    const Icon(Icons.language, color: Colors.white70),
+                    const SizedBox(width: 8),
+                    Text(entry.value, style: GoogleFonts.poppins()),
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: (String? newValue) async {
+              if (newValue != null && newValue != _selectedLanguage) {
+                setState(() {
+                  _selectedLanguage = newValue;
+                });
+                await _savePreferences(_selectedVoice, newValue);
+                if (!_isWebPlatform) {
+                  await _initTts();
+                }
+                await _fetchContent();
+              }
+            },
           ),
         ),
-        backgroundColor: Colors.green[700],
-        elevation: 0,
-        actions: [
+        if (!_isWebPlatform)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: DropdownButton<String>(
-              value: _selectedLanguage,
-              icon: const Icon(Icons.language, color: Colors.white),
+              value: _selectedVoice,
+              icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
               dropdownColor: Colors.green[700],
               style: GoogleFonts.poppins(color: Colors.white),
               underline: Container(height: 0),
-              items: _languages.entries.map((entry) {
-                return DropdownMenuItem<String>(
-                  value: entry.key,
+              items: [
+                DropdownMenuItem(
+                  value: 'female',
                   child: Row(
                     children: [
-                      const Icon(Icons.language, color: Colors.white70),
+                      const Icon(Icons.female, color: Colors.pink),
                       const SizedBox(width: 8),
-                      Text(entry.value, style: GoogleFonts.poppins()),
+                      Text('Female Voice', style: GoogleFonts.poppins()),
                     ],
                   ),
-                );
-              }).toList(),
+                ),
+                DropdownMenuItem(
+                  value: 'male',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.male, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      Text('Male Voice', style: GoogleFonts.poppins()),
+                    ],
+                  ),
+                ),
+              ],
               onChanged: (String? newValue) async {
-                if (newValue != null && newValue != _selectedLanguage) {
-                  final languageName = _localeToLanguage[newValue];
-                  final hasContent =
-                      _content.any((lang) => lang['language'] == languageName);
-
-                  if (!hasContent && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Content not available for ${_languages[newValue] ?? newValue}. Defaulting to Tamil.',
-                        ),
-                        duration: const Duration(seconds: 5),
-                      ),
-                    );
-                    setState(() {
-                      _selectedLanguage = 'ta-IN';
-                    });
-                    await _savePreferences(_selectedVoice, 'ta-IN');
-                  } else {
-                    setState(() {
-                      _selectedLanguage = newValue;
-                    });
-                    await _savePreferences(_selectedVoice, newValue);
-                    if (!_isWebPlatform) {
-                      await _initTts(); // Reinitialize TTS for new language
-                    }
+                if (newValue != null && newValue != _selectedVoice) {
+                  setState(() {
+                    _selectedVoice = newValue;
+                  });
+                  await _savePreferences(newValue, _selectedLanguage);
+                  if (!_isWebPlatform) {
+                    await _initTts();
                   }
                 }
               },
             ),
           ),
-          if (!_isWebPlatform) // Hide voice selection on web
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              child: DropdownButton<String>(
-                value: _selectedVoice,
-                icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-                dropdownColor: Colors.green[700],
-                style: GoogleFonts.poppins(color: Colors.white),
-                underline: Container(height: 0),
-                items: [
-                  DropdownMenuItem(
-                    value: 'female',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.female, color: Colors.pink),
-                        const SizedBox(width: 8),
-                        Text('Female Voice', style: GoogleFonts.poppins()),
-                      ],
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: 'male',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.male, color: Colors.blue),
-                        const SizedBox(width: 8),
-                        Text('Male Voice', style: GoogleFonts.poppins()),
-                      ],
-                    ),
-                  ),
-                ],
-                onChanged: (String? newValue) async {
-                  if (newValue != null && newValue != _selectedVoice) {
-                    setState(() {
-                      _selectedVoice = newValue;
-                    });
-                    await _savePreferences(newValue, _selectedLanguage);
-                    if (!_isWebPlatform) {
-                      await _initTts(); // Reinitialize TTS for new voice
-                    }
-                  }
-                },
+      ],
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Semantics(
+              label: 'Error message',
+              child: Text(
+                _errorMessage,
+                style: GoogleFonts.poppins(color: Colors.red, fontSize: 16),
+                textAlign: TextAlign.center,
               ),
             ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _fetchContent,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[700],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text('Retry',
+                  style: GoogleFonts.poppins(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_content.isEmpty) {
+      return Center(
+        child: Text(
+          'No content available',
+          style: GoogleFonts.poppins(fontSize: 18),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(8),
+      itemCount: _content.length,
+      itemBuilder: (context, index) {
+        final content = _content[index];
+        return _buildContentCard(content, index);
+      },
+    );
+  }
+
+  Widget _buildContentCard(TextbookContent content, int cardIndex) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  label: 'Subject: ${content.subject}',
+                  child: Text(
+                    content.subject,
+                    style: GoogleFonts.poppins(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[900],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Semantics(
+                  label: 'Topic: ${content.topic}',
+                  child: Text(
+                    content.topic,
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: content.sections.length,
+            itemBuilder: (context, index) {
+              return _buildSection(
+                  content.sections[index], cardIndex * 1000 + index);
+            },
+          ),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.green[50]!, Colors.white],
-          ),
-        ),
-        child: sections.isEmpty
-            ? const Center(child: Text('No content available'))
-            : ListView.builder(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
-                itemCount: sections.length,
-                itemBuilder: (context, index) {
-                  final section = sections[index];
-                  final isSpeaking = _currentlySpeakingIndex == index;
+    );
+  }
 
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                        horizontal: 12.0, vertical: 8.0),
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15.0),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (section['image'] != null)
-                          ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(15.0)),
-                            child: Stack(
-                              children: [
-                                Image.network(
-                                  section['image'],
-                                  height: 200,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder:
-                                      (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return Container(
-                                      height: 200,
-                                      color: Colors.grey[200],
-                                      child: Center(
-                                        child: CircularProgressIndicator(
-                                          value: loadingProgress
-                                                      .expectedTotalBytes !=
-                                                  null
-                                              ? loadingProgress
-                                                      .cumulativeBytesLoaded /
-                                                  loadingProgress
-                                                      .expectedTotalBytes!
-                                              : null,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  left: 0,
-                                  right: 0,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                        colors: [
-                                          Colors.transparent,
-                                          Colors.black.withOpacity(0.7),
-                                        ],
-                                      ),
-                                    ),
-                                    padding: const EdgeInsets.all(16),
-                                    child: Text(
-                                      section['heading'],
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
+  Widget _buildSection(Section section, int index) {
+    final isSpeaking = _currentlySpeakingIndex == index;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (section.image != null)
+            Semantics(
+              label: 'Image for ${section.heading}',
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(15)),
+                child: Stack(
+                  children: [
+                    Image.network(
+                      section.image!,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          height: 200,
+                          color: Colors.grey[200],
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
                             ),
                           ),
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  if (section['image'] == null)
-                                    Expanded(
-                                      child: Text(
-                                        section['heading'],
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green[900],
-                                        ),
-                                      ),
-                                    ),
-                                  if (!_isWebPlatform) // Hide TTS button on web
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: isSpeaking
-                                            ? Colors.red[50]
-                                            : Colors.green[50],
-                                        borderRadius: BorderRadius.circular(30),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color:
-                                                Colors.black.withOpacity(0.1),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          borderRadius:
-                                              BorderRadius.circular(30),
-                                          onTap: () => _speak(
-                                              section['paragraph'], index),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 8,
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  isSpeaking
-                                                      ? Icons
-                                                          .stop_circle_outlined
-                                                      : Icons.volume_up_rounded,
-                                                  color: isSpeaking
-                                                      ? Colors.red
-                                                      : Colors.green[700],
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  isSpeaking
-                                                      ? 'Stop'
-                                                      : 'Listen',
-                                                  style: GoogleFonts.poppins(
-                                                    color: isSpeaking
-                                                        ? Colors.red
-                                                        : Colors.green[700],
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                section['paragraph'],
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  height: 1.6,
-                                  color: Colors.black87,
-                                ),
-                              ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 200,
+                        color: Colors.grey[200],
+                        child: const Icon(
+                          Icons.broken_image,
+                          size: 50,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.7),
                             ],
                           ),
                         ),
-                      ],
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          section.heading,
+                          style: GoogleFonts.poppins(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                     ),
-                  );
-                },
+                  ],
+                ),
               ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (section.image == null)
+                      Expanded(
+                        child: Semantics(
+                          label: 'Section heading: ${section.heading}',
+                          child: Text(
+                            section.heading,
+                            style: GoogleFonts.poppins(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green[900],
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (!_isWebPlatform)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: isSpeaking ? Colors.red[50] : Colors.green[50],
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(30),
+                            onTap: () => _speak(section.paragraph, index),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isSpeaking
+                                        ? Icons.stop_circle_outlined
+                                        : Icons.volume_up_rounded,
+                                    color: isSpeaking
+                                        ? Colors.red
+                                        : Colors.green[700],
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    isSpeaking ? 'Stop' : 'Listen',
+                                    style: GoogleFonts.poppins(
+                                      color: isSpeaking
+                                          ? Colors.red
+                                          : Colors.green[700],
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Semantics(
+                  label: 'Section content: ${section.paragraph}',
+                  child: Text(
+                    section.paragraph,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      height: 1.6,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
+  }
+}
+
+class TextbookContent {
+  final String subject;
+  final String topic;
+  final List<Section> sections;
+  final String language;
+
+  TextbookContent({
+    required this.subject,
+    required this.topic,
+    required this.sections,
+    required this.language,
+  });
+
+  factory TextbookContent.fromJson(Map<String, dynamic> json) {
+    return TextbookContent(
+      subject: json['subject'],
+      topic: json['topic'],
+      sections: (json['sections'] as List)
+          .map((section) => Section.fromJson(section))
+          .toList(),
+      language: json['language'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'subject': subject,
+      'topic': topic,
+      'sections': sections.map((s) => s.toJson()).toList(),
+      'language': language,
+    };
   }
 }
