@@ -47,13 +47,28 @@ class _ReportsZonePageState extends State<ReportsZonePage>
   String? _selectedClass;
   String? _selectedTest;
   String? _selectedZoneType;
-  String? _selectedDateRange;
+  DateTimeRange? _selectedDateRange;
   String? _selectedSubject;
+
+  final DateTime _minDate = DateTime.now().subtract(const Duration(days: 365));
+  final DateTime _maxDate = DateTime.now();
 
   final List<String> _classes = ['7', '8', '9', '10'];
   final List<String> _tests = ['FA1', 'FA2', 'SA1', 'FA3', 'FA4', 'SA2'];
-  final List<String> _zoneTypes = ['All Zones', 'Test Zone', 'Practice Zone', 'Doubts'];
-  final List<String> _dateRanges = ['All Time', 'Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'This Month', 'Last Month'];
+  final List<String> _zoneTypes = [
+    'All Zones',
+    'Test Zone',
+    'Practice Zone',
+    'Doubts'
+  ];
+  final List<String> _dateRanges = [
+    'All Time',
+    'Last 7 Days',
+    'Last 30 Days',
+    'Last 90 Days',
+    'This Month',
+    'Last Month'
+  ];
   final List<String> _subjects = [
     'All Subjects',
     'Mathematics',
@@ -67,7 +82,7 @@ class _ReportsZonePageState extends State<ReportsZonePage>
     'Biology',
     'Computer Science'
   ];
-  
+
   // Sample data for each subject
   final Map<String, Map<String, dynamic>> _subjectData = {
     'Mathematics': {
@@ -140,7 +155,7 @@ class _ReportsZonePageState extends State<ReportsZonePage>
     _selectedTest = _tests.first;
     _selectedSubject = _subjects.first;
     _selectedZoneType = _zoneTypes.first;
-    _selectedDateRange = _dateRanges.first;
+    _selectedDateRange = null;
   }
 
   @override
@@ -199,14 +214,15 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                 ),
               ),
               pw.SizedBox(height: 24),
-              
+
               // Report Format
               pw.Container(
                 width: double.infinity,
                 padding: const pw.EdgeInsets.all(16),
                 decoration: pw.BoxDecoration(
                   border: pw.Border.all(color: PdfColors.blue900, width: 1),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                  borderRadius:
+                      const pw.BorderRadius.all(pw.Radius.circular(8)),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -220,9 +236,15 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                       ),
                     ),
                     pw.SizedBox(height: 12),
-                    _buildReportRow('Subject', _selectedSubject ?? 'All Subjects'),
-                    _buildReportRow('Zone Type', _selectedZoneType ?? 'All Zones'),
-                    _buildReportRow('Date Range', _selectedDateRange ?? 'All Time'),
+                    _buildReportRow(
+                        'Subject', _selectedSubject ?? 'All Subjects'),
+                    _buildReportRow(
+                        'Zone Type', _selectedZoneType ?? 'All Zones'),
+                    _buildReportRow(
+                        'Date Range',
+                        _selectedDateRange == null
+                            ? 'All Time'
+                            : '${_selectedDateRange!.start.day}/${_selectedDateRange!.start.month}/${_selectedDateRange!.start.year} - ${_selectedDateRange!.end.day}/${_selectedDateRange!.end.month}/${_selectedDateRange!.end.year}'),
                     _buildReportRow('Generated On', formattedDate),
                   ],
                 ),
@@ -266,7 +288,8 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    if (_selectedSubject != null && _selectedSubject != 'All Subjects')
+                    if (_selectedSubject != null &&
+                        _selectedSubject != 'All Subjects')
                       ..._buildSubjectReport(_selectedSubject!)
                     else
                       ..._buildAllSubjectsReport(),
@@ -333,7 +356,7 @@ class _ReportsZonePageState extends State<ReportsZonePage>
       ),
     );
   }
-  
+
   List<pw.Widget> _buildSubjectReport(String subject) {
     final data = _subjectData[subject]!;
     return [
@@ -352,7 +375,7 @@ class _ReportsZonePageState extends State<ReportsZonePage>
       _buildReportRow('Tests Taken', data['testsTaken']),
     ];
   }
-  
+
   List<pw.Widget> _buildAllSubjectsReport() {
     return [
       pw.Text(
@@ -1046,7 +1069,8 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                                               BorderRadius.circular(12),
                                         ),
                                       ),
-                                      icon: const Icon(Icons.download, size: 20),
+                                      icon:
+                                          const Icon(Icons.download, size: 20),
                                       label: Text(
                                         'Download Report',
                                         style: GoogleFonts.poppins(
@@ -1058,7 +1082,7 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                                   ],
                                 ),
                                 const SizedBox(height: 16),
-                                
+
                                 // Filter Options Card
                                 Card(
                                   elevation: 4,
@@ -1068,7 +1092,8 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                                   child: Padding(
                                     padding: const EdgeInsets.all(16),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Filter Options',
@@ -1083,11 +1108,13 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                                         DropdownButtonFormField<String>(
                                           value: _selectedSubject,
                                           items: _subjects
-                                              .map((subject) => DropdownMenuItem(
-                                                    value: subject,
-                                                    child: Text(subject,
-                                                        style: GoogleFonts.poppins()),
-                                                  ))
+                                              .map(
+                                                  (subject) => DropdownMenuItem(
+                                                        value: subject,
+                                                        child: Text(subject,
+                                                            style: GoogleFonts
+                                                                .poppins()),
+                                                      ))
                                               .toList(),
                                           onChanged: (val) => setState(
                                               () => _selectedSubject = val),
@@ -1106,51 +1133,124 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                                         Row(
                                           children: [
                                             Expanded(
-                                              child: DropdownButtonFormField<String>(
+                                              child: DropdownButtonFormField<
+                                                  String>(
                                                 value: _selectedZoneType,
                                                 items: _zoneTypes
-                                                    .map((type) => DropdownMenuItem(
+                                                    .map((type) =>
+                                                        DropdownMenuItem(
                                                           value: type,
                                                           child: Text(type,
-                                                              style: GoogleFonts.poppins()),
+                                                              style: GoogleFonts
+                                                                  .poppins()),
                                                         ))
                                                     .toList(),
                                                 onChanged: (val) => setState(
-                                                    () => _selectedZoneType = val),
+                                                    () => _selectedZoneType =
+                                                        val),
                                                 decoration: InputDecoration(
                                                   labelText: 'Zone Type',
                                                   border: OutlineInputBorder(
                                                     borderRadius:
-                                                        BorderRadius.circular(12),
+                                                        BorderRadius.circular(
+                                                            12),
                                                   ),
                                                   contentPadding:
-                                                      const EdgeInsets.symmetric(
+                                                      const EdgeInsets
+                                                          .symmetric(
                                                           horizontal: 16),
                                                 ),
                                               ),
                                             ),
                                             const SizedBox(width: 16),
                                             Expanded(
-                                              child: DropdownButtonFormField<String>(
-                                                value: _selectedDateRange,
-                                                items: _dateRanges
-                                                    .map((range) => DropdownMenuItem(
-                                                          value: range,
-                                                          child: Text(range,
-                                                              style: GoogleFonts.poppins()),
-                                                        ))
-                                                    .toList(),
-                                                onChanged: (val) => setState(
-                                                    () => _selectedDateRange = val),
-                                                decoration: InputDecoration(
-                                                  labelText: 'Date Range',
-                                                  border: OutlineInputBorder(
+                                              child: InkWell(
+                                                onTap: () async {
+                                                  final DateTimeRange? picked =
+                                                      await showDateRangePicker(
+                                                    context: context,
+                                                    firstDate: _minDate,
+                                                    lastDate: _maxDate,
+                                                    currentDate: DateTime.now(),
+                                                    saveText: 'Set Date Range',
+                                                    initialDateRange:
+                                                        _selectedDateRange ??
+                                                            DateTimeRange(
+                                                              start: DateTime
+                                                                      .now()
+                                                                  .subtract(
+                                                                      const Duration(
+                                                                          days:
+                                                                              7)),
+                                                              end: DateTime
+                                                                  .now(),
+                                                            ),
+                                                    builder: (context, child) {
+                                                      return Theme(
+                                                        data: Theme.of(context)
+                                                            .copyWith(
+                                                          colorScheme:
+                                                              ColorScheme.light(
+                                                            primary: Colors
+                                                                .blue[900]!,
+                                                            onPrimary:
+                                                                Colors.white,
+                                                            surface:
+                                                                Colors.white,
+                                                            onSurface: Colors
+                                                                .blue[900]!,
+                                                          ),
+                                                        ),
+                                                        child: child!,
+                                                      );
+                                                    },
+                                                  );
+
+                                                  if (picked != null) {
+                                                    setState(() {
+                                                      _selectedDateRange =
+                                                          picked;
+                                                    });
+                                                  }
+                                                },
+                                                child: Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 16,
+                                                      vertical: 12),
+                                                  decoration: BoxDecoration(
+                                                    border: Border.all(
+                                                        color: Colors.grey),
                                                     borderRadius:
-                                                        BorderRadius.circular(12),
+                                                        BorderRadius.circular(
+                                                            12),
                                                   ),
-                                                  contentPadding:
-                                                      const EdgeInsets.symmetric(
-                                                          horizontal: 16),
+                                                  child: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      Text(
+                                                        _selectedDateRange ==
+                                                                null
+                                                            ? 'Select Date Range'
+                                                            : '${_selectedDateRange!.start.day}/${_selectedDateRange!.start.month} - ${_selectedDateRange!.end.day}/${_selectedDateRange!.end.month}',
+                                                        style:
+                                                            GoogleFonts.poppins(
+                                                          color:
+                                                              _selectedDateRange ==
+                                                                      null
+                                                                  ? Colors
+                                                                      .grey[600]
+                                                                  : Colors
+                                                                      .black,
+                                                        ),
+                                                      ),
+                                                      Icon(Icons.calendar_today,
+                                                          color:
+                                                              Colors.blue[900]),
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
                                             ),

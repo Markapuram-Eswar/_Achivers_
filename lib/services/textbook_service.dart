@@ -1,28 +1,49 @@
-import 'dart:convert';
-import 'package:achiver_app/models/textbook_content.dart';
-import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class TextbookService {
-  Future<List<TextbookContent>> fetchTextbookContent({
-    required String language,
+class TextBookService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  /// Fetch textbook content for a given school, grade, subject, and topic
+  Future<Map<String, dynamic>?> getTextbookContent({
+    required String school,
+    required String grade,
+    required String subject,
+    required String topic,
   }) async {
     try {
-      // Replace with your actual backend URL
-      final response = await http.get(
-        Uri.parse('https://your-api-endpoint.com/textbooks?lang=$language'),
-      );
+      // Reference to the textbooks collection and the specific school document
+      DocumentSnapshot schoolDoc =
+          await _firestore.collection('textbooks').doc(school).get();
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        if (data.isEmpty) {
-          throw Exception('No content available for language: $language');
-        }
-        return data.map((json) => TextbookContent.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to fetch content: ${response.statusCode}');
+      if (!schoolDoc.exists) {
+        print('School document not found.');
+        return null;
       }
+
+      final data = schoolDoc.data() as Map<String, dynamic>?;
+      if (data == null) return null;
+
+      // Traverse to the grade map
+      final gradeMap = data[grade] as Map<String, dynamic>?;
+      if (gradeMap == null) return null;
+
+      // Traverse to the subject map
+      final subjectMap = gradeMap[subject] as Map<String, dynamic>?;
+      if (subjectMap == null) return null;
+
+      // Get the topic content
+      final topicContent = subjectMap[topic];
+      if (topicContent == null) return null;
+
+      // If topicContent is a map, return it directly
+      if (topicContent is Map<String, dynamic>) {
+        return topicContent;
+      }
+      // If it's not a map, wrap it in a map
+      return {'content': topicContent};
     } catch (e) {
-      throw Exception('Error fetching content: $e');
+      print('Error fetching textbook content: $e');
+      return null;
     }
   }
 }
