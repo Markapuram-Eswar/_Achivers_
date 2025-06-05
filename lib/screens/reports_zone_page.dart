@@ -48,11 +48,89 @@ class _ReportsZonePageState extends State<ReportsZonePage>
   String? _selectedTest;
   String? _selectedZoneType;
   String? _selectedDateRange;
+  String? _selectedSubject;
 
   final List<String> _classes = ['7', '8', '9', '10'];
   final List<String> _tests = ['FA1', 'FA2', 'SA1', 'FA3', 'FA4', 'SA2'];
   final List<String> _zoneTypes = ['All Zones', 'Test Zone', 'Practice Zone', 'Doubts'];
   final List<String> _dateRanges = ['All Time', 'Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'This Month', 'Last Month'];
+  final List<String> _subjects = [
+    'All Subjects',
+    'Mathematics',
+    'Science',
+    'English',
+    'Social Studies',
+    'Hindi',
+    'Telugu',
+    'Physics',
+    'Chemistry',
+    'Biology',
+    'Computer Science'
+  ];
+  
+  // Sample data for each subject
+  final Map<String, Map<String, dynamic>> _subjectData = {
+    'Mathematics': {
+      'timeSpent': '5h 30m',
+      'completion': '78%',
+      'avgScore': '85%',
+      'testsTaken': '12'
+    },
+    'Science': {
+      'timeSpent': '4h 45m',
+      'completion': '65%',
+      'avgScore': '82%',
+      'testsTaken': '10'
+    },
+    'English': {
+      'timeSpent': '3h 20m',
+      'completion': '90%',
+      'avgScore': '88%',
+      'testsTaken': '8'
+    },
+    'Social Studies': {
+      'timeSpent': '2h 50m',
+      'completion': '55%',
+      'avgScore': '75%',
+      'testsTaken': '6'
+    },
+    'Hindi': {
+      'timeSpent': '2h 15m',
+      'completion': '70%',
+      'avgScore': '80%',
+      'testsTaken': '5'
+    },
+    'Telugu': {
+      'timeSpent': '1h 50m',
+      'completion': '60%',
+      'avgScore': '78%',
+      'testsTaken': '4'
+    },
+    'Physics': {
+      'timeSpent': '6h 10m',
+      'completion': '72%',
+      'avgScore': '83%',
+      'testsTaken': '14'
+    },
+    'Chemistry': {
+      'timeSpent': '5h 55m',
+      'completion': '68%',
+      'avgScore': '80%',
+      'testsTaken': '13'
+    },
+    'Biology': {
+      'timeSpent': '4h 30m',
+      'completion': '75%',
+      'avgScore': '85%',
+      'testsTaken': '11'
+    },
+    'Computer Science': {
+      'timeSpent': '7h 20m',
+      'completion': '85%',
+      'avgScore': '92%',
+      'testsTaken': '15'
+    },
+  };
 
   @override
   void initState() {
@@ -60,6 +138,9 @@ class _ReportsZonePageState extends State<ReportsZonePage>
     _tabController = TabController(length: 2, vsync: this);
     _selectedClass = _classes.first;
     _selectedTest = _tests.first;
+    _selectedSubject = _subjects.first;
+    _selectedZoneType = _zoneTypes.first;
+    _selectedDateRange = _dateRanges.first;
   }
 
   @override
@@ -139,6 +220,7 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                       ),
                     ),
                     pw.SizedBox(height: 12),
+                    _buildReportRow('Subject', _selectedSubject ?? 'All Subjects'),
                     _buildReportRow('Zone Type', _selectedZoneType ?? 'All Zones'),
                     _buildReportRow('Date Range', _selectedDateRange ?? 'All Time'),
                     _buildReportRow('Generated On', formattedDate),
@@ -184,11 +266,10 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    _buildReportRow('Total Time Spent', '12h 45m'),
-                    _buildReportRow('Lessons Completed', '24'),
-                    _buildReportRow('Quizzes Taken', '15'),
-                    _buildReportRow('Average Score', '87%'),
-                    _buildReportRow('Streak Days', '7'),
+                    if (_selectedSubject != null && _selectedSubject != 'All Subjects')
+                      ..._buildSubjectReport(_selectedSubject!)
+                    else
+                      ..._buildAllSubjectsReport(),
                   ],
                 ),
               ),
@@ -251,6 +332,44 @@ class _ReportsZonePageState extends State<ReportsZonePage>
         ],
       ),
     );
+  }
+  
+  List<pw.Widget> _buildSubjectReport(String subject) {
+    final data = _subjectData[subject]!;
+    return [
+      pw.Text(
+        subject,
+        style: pw.TextStyle(
+          fontSize: 16,
+          fontWeight: pw.FontWeight.bold,
+          color: PdfColors.blue900,
+        ),
+      ),
+      pw.SizedBox(height: 8),
+      _buildReportRow('Time Spent', data['timeSpent']),
+      _buildReportRow('Completion', data['completion']),
+      _buildReportRow('Average Score', data['avgScore']),
+      _buildReportRow('Tests Taken', data['testsTaken']),
+    ];
+  }
+  
+  List<pw.Widget> _buildAllSubjectsReport() {
+    return [
+      pw.Text(
+        'All Subjects Summary',
+        style: pw.TextStyle(
+          fontSize: 16,
+          fontWeight: pw.FontWeight.bold,
+          color: PdfColors.blue900,
+        ),
+      ),
+      pw.SizedBox(height: 8),
+      _buildReportRow('Total Time Spent', '45h 30m'),
+      _buildReportRow('Average Completion', '72%'),
+      _buildReportRow('Overall Average Score', '83%'),
+      _buildReportRow('Total Tests Taken', '98'),
+      _buildReportRow('Streak Days', '7'),
+    ];
   }
 
   Future<void> _downloadSampleTablePdf() async {
@@ -960,11 +1079,35 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                                           ),
                                         ),
                                         const SizedBox(height: 12),
+                                        // Subject Dropdown
+                                        DropdownButtonFormField<String>(
+                                          value: _selectedSubject,
+                                          items: _subjects
+                                              .map((subject) => DropdownMenuItem(
+                                                    value: subject,
+                                                    child: Text(subject,
+                                                        style: GoogleFonts.poppins()),
+                                                  ))
+                                              .toList(),
+                                          onChanged: (val) => setState(
+                                              () => _selectedSubject = val),
+                                          decoration: InputDecoration(
+                                            labelText: 'Subject',
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 16),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
                                         Row(
                                           children: [
                                             Expanded(
                                               child: DropdownButtonFormField<String>(
-                                                value: _selectedZoneType ?? _zoneTypes.first,
+                                                value: _selectedZoneType,
                                                 items: _zoneTypes
                                                     .map((type) => DropdownMenuItem(
                                                           value: type,
@@ -989,7 +1132,7 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                                             const SizedBox(width: 16),
                                             Expanded(
                                               child: DropdownButtonFormField<String>(
-                                                value: _selectedDateRange ?? _dateRanges.first,
+                                                value: _selectedDateRange,
                                                 items: _dateRanges
                                                     .map((range) => DropdownMenuItem(
                                                           value: range,
