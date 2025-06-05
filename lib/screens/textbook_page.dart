@@ -56,12 +56,16 @@ class _TextbookPageState extends State<TextbookPage> {
     'ta-IN': 'Tamil (India)',
     'te-IN': 'Telugu (India)',
     'ml-IN': 'Malayalam (India)',
+    'hi-IN': 'Hindi (India)',
+    'kn-IN': 'Kannada (India)',
   };
 
   final Map<String, String> _localeToLanguage = {
     'ta-IN': 'Tamil',
     'te-IN': 'Telugu',
     'ml-IN': 'Malayalam',
+    'hi-IN': 'Hindi',
+    'kn-IN': 'Kannada',
   };
 
   List<TextbookContent> _content = [];
@@ -106,11 +110,11 @@ class _TextbookPageState extends State<TextbookPage> {
         throw Exception('No content available for $_selectedLanguage');
       }
 
-      await _cacheContent(content);
+      await _cacheContent(content.cast<TextbookContent>());
 
       if (mounted) {
         setState(() {
-          _content = content;
+          _content = content.cast<TextbookContent>();
           _isLoading = false;
         });
       }
