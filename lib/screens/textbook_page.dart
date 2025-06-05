@@ -307,6 +307,7 @@ class _TextbookPageState extends State<TextbookPage> {
             _isSpeaking = false;
             _currentlySpeakingIndex = null;
           });
+          if (_currentlySpeakingIndex == index) return;
         }
         if (_currentlySpeakingIndex == index) {
           return;
@@ -343,6 +344,34 @@ class _TextbookPageState extends State<TextbookPage> {
           SnackBar(
             content: Text('Error: ${e.toString()}'),
             duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _stopSpeaking() async {
+    try {
+      // First cancel any ongoing speech
+      await _flutterTts.stop();
+
+      // Reset the speaking state
+      if (mounted) {
+        setState(() {
+          _isSpeaking = false;
+          _currentlySpeakingIndex = null;
+        });
+      }
+
+      // Add a small delay to ensure the state is properly updated
+      await Future.delayed(const Duration(milliseconds: 100));
+    } catch (e) {
+      debugPrint('Error in _stopSpeaking: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error stopping speech'),
+            duration: Duration(seconds: 2),
           ),
         );
       }
