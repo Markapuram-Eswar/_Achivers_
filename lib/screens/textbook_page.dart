@@ -4,6 +4,15 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
+void main() {
+  runApp(const MaterialApp(
+    home: TextbookPage(
+      subjectId: 'your_subject_id_here',
+      topicId: 'your_topic_id_here',
+    ),
+  ));
+}
+
 class TextbookPage extends StatefulWidget {
   final String subjectId;
   final String topicId;
@@ -25,6 +34,8 @@ class _TextbookPageState extends State<TextbookPage> {
   int? _currentlySpeakingIndex;
   double _fontSize = 16.0;
   String _selectedVoice = 'female'; // 'male' or 'female'
+  List<dynamic> _availableVoices = [];
+  Map<String, String>? _selectedVoiceParams;
 
   final List<Map<String, dynamic>> _content = [
     {
@@ -94,14 +105,28 @@ class _TextbookPageState extends State<TextbookPage> {
   Future<void> _initTts() async {
     try {
       await _flutterTts.setLanguage('en-US');
-      // Set voice parameters based on selection
-      if (_selectedVoice == 'male') {
-        await _flutterTts.setPitch(0.8);
-        await _flutterTts.setSpeechRate(0.45);
-      } else {
-        await _flutterTts.setPitch(1.0);
-        await _flutterTts.setSpeechRate(0.5);
+      _availableVoices = await _flutterTts.getVoices;
+
+      // Get available voices and print them for debugging
+      print('Available voices: $_availableVoices');
+
+      // Try to select a male or female voice robustly
+      _selectedVoiceParams = _pickVoice(_selectedVoice);
+      if (_selectedVoiceParams != null) {
+        await _flutterTts.setVoice(_selectedVoiceParams!);
       }
+
+      // Set more natural speech rates
+      if (_selectedVoice == 'male') {
+        await _flutterTts.setPitch(0.9); // Slightly lower pitch for male
+        await _flutterTts.setSpeechRate(0.5); // More natural speed
+      } else {
+        await _flutterTts.setPitch(1.1); // Slightly higher pitch for female
+        await _flutterTts.setSpeechRate(0.5); // More natural speed
+      }
+
+      // Set volume to maximum
+      await _flutterTts.setVolume(1.0);
 
       _flutterTts.setCompletionHandler(() {
         if (mounted) {
@@ -118,9 +143,12 @@ class _TextbookPageState extends State<TextbookPage> {
             _isSpeaking = false;
             _currentlySpeakingIndex = null;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('TTS Error: $msg')),
-          );
+          // Only show error if it's not a user-initiated stop
+          if (!msg.contains('interrupted')) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('TTS Error: $msg')),
+            );
+          }
         }
       });
 
@@ -134,6 +162,46 @@ class _TextbookPageState extends State<TextbookPage> {
         );
       }
     }
+  }
+
+  Map<String, String>? _pickVoice(String gender) {
+    if (_availableVoices.isEmpty) return null;
+
+    // Print available voices for debugging
+    print('Picking voice for gender: $gender');
+    print('Available voices: $_availableVoices');
+
+    // First try to find a voice with explicit gender property
+    final genderMatch = _availableVoices.firstWhere(
+      (v) => v['gender']?.toLowerCase() == gender,
+      orElse: () => null,
+    );
+    if (genderMatch != null) {
+      print('Found voice by gender: $genderMatch');
+      return Map<String, String>.from(genderMatch);
+    }
+
+    // Then try to find by name containing gender
+    final nameMatch = _availableVoices.firstWhere(
+      (v) => v['name']?.toLowerCase().contains(gender),
+      orElse: () => null,
+    );
+    if (nameMatch != null) {
+      print('Found voice by name: $nameMatch');
+      return Map<String, String>.from(nameMatch);
+    }
+
+    // If no gender match, try to find a voice that's not explicitly the opposite gender
+    final oppositeGender = gender == 'male' ? 'female' : 'male';
+    final nonOppositeVoice = _availableVoices.firstWhere(
+      (v) =>
+          !(v['name']?.toLowerCase().contains(oppositeGender) ?? false) &&
+          !(v['gender']?.toLowerCase() == oppositeGender),
+      orElse: () => _availableVoices.first,
+    );
+
+    print('Using fallback voice: $nonOppositeVoice');
+    return Map<String, String>.from(nonOppositeVoice);
   }
 
   Future<void> _speak(String text, int index) async {
@@ -161,6 +229,12 @@ class _TextbookPageState extends State<TextbookPage> {
 
       if (!_isTtsInitialized) {
         await _initTts();
+      }
+
+      // Ensure we're using the correct voice before speaking
+      _selectedVoiceParams = _pickVoice(_selectedVoice);
+      if (_selectedVoiceParams != null) {
+        await _flutterTts.setVoice(_selectedVoiceParams!);
       }
 
       await _flutterTts.speak(text);
