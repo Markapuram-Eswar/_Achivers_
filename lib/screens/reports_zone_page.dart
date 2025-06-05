@@ -46,9 +46,13 @@ class _ReportsZonePageState extends State<ReportsZonePage>
 
   String? _selectedClass;
   String? _selectedTest;
+  String? _selectedZoneType;
+  String? _selectedDateRange;
 
   final List<String> _classes = ['7', '8', '9', '10'];
   final List<String> _tests = ['FA1', 'FA2', 'SA1', 'FA3', 'FA4', 'SA2'];
+  final List<String> _zoneTypes = ['All Zones', 'Test Zone', 'Practice Zone', 'Doubts'];
+  final List<String> _dateRanges = ['All Time', 'Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'This Month', 'Last Month'];
 
   @override
   void initState() {
@@ -127,7 +131,7 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      'Report Format',
+                      'Report Details',
                       style: pw.TextStyle(
                         fontSize: 16,
                         fontWeight: pw.FontWeight.bold,
@@ -135,11 +139,9 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                       ),
                     ),
                     pw.SizedBox(height: 12),
-                    pw.Text('Subject: '),
-                    pw.SizedBox(height: 8),
-                    pw.Text('Domains: test zone / practice / doubts'),
-                    pw.SizedBox(height: 8),
-                    pw.Text('Date: $formattedDate'),
+                    _buildReportRow('Zone Type', _selectedZoneType ?? 'All Zones'),
+                    _buildReportRow('Date Range', _selectedDateRange ?? 'All Time'),
+                    _buildReportRow('Generated On', formattedDate),
                   ],
                 ),
               ),
@@ -897,7 +899,9 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                           return SingleChildScrollView(
                             padding: const EdgeInsets.all(16),
                             child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // Header and Download Button
                                 Row(
                                   children: [
                                     Expanded(
@@ -923,8 +927,7 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                                               BorderRadius.circular(12),
                                         ),
                                       ),
-                                      icon:
-                                          const Icon(Icons.download, size: 20),
+                                      icon: const Icon(Icons.download, size: 20),
                                       label: Text(
                                         'Download Report',
                                         style: GoogleFonts.poppins(
@@ -934,6 +937,85 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                                       ),
                                     ),
                                   ],
+                                ),
+                                const SizedBox(height: 16),
+                                
+                                // Filter Options Card
+                                Card(
+                                  elevation: 4,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Filter Options',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.blue[900],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: DropdownButtonFormField<String>(
+                                                value: _selectedZoneType ?? _zoneTypes.first,
+                                                items: _zoneTypes
+                                                    .map((type) => DropdownMenuItem(
+                                                          value: type,
+                                                          child: Text(type,
+                                                              style: GoogleFonts.poppins()),
+                                                        ))
+                                                    .toList(),
+                                                onChanged: (val) => setState(
+                                                    () => _selectedZoneType = val),
+                                                decoration: InputDecoration(
+                                                  labelText: 'Zone Type',
+                                                  border: OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(12),
+                                                  ),
+                                                  contentPadding:
+                                                      const EdgeInsets.symmetric(
+                                                          horizontal: 16),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: DropdownButtonFormField<String>(
+                                                value: _selectedDateRange ?? _dateRanges.first,
+                                                items: _dateRanges
+                                                    .map((range) => DropdownMenuItem(
+                                                          value: range,
+                                                          child: Text(range,
+                                                              style: GoogleFonts.poppins()),
+                                                        ))
+                                                    .toList(),
+                                                onChanged: (val) => setState(
+                                                    () => _selectedDateRange = val),
+                                                decoration: InputDecoration(
+                                                  labelText: 'Date Range',
+                                                  border: OutlineInputBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(12),
+                                                  ),
+                                                  contentPadding:
+                                                      const EdgeInsets.symmetric(
+                                                          horizontal: 16),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
                                 UserSummary(user: data.user),
