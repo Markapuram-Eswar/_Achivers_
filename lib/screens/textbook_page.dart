@@ -31,9 +31,30 @@ class _TextbookPageState extends State<TextbookPage> {
   double _currentFontSize = 16.0;
 
   String _selectedLanguage = 'English';
-  final List<String> _languages = ['English', 'हिंदी'];
+  final List<String> _languages = [
+    'English',
+    'हिंदी',
+    'తెలుగు',
+    'தமிழ்',
+    'മലയാളം'
+  ];
 
-  List<Map<String, dynamic>> get _content => _selectedLanguage == 'English' ? _englishContent : _hindiContent;
+  List<Map<String, dynamic>> get _content {
+    switch (_selectedLanguage) {
+      case 'English':
+        return _englishContent;
+      case 'हिंदी':
+        return _hindiContent;
+      case 'తెలుగు':
+        return _teluguContent;
+      case 'தமிழ்':
+        return _tamilContent;
+      case 'മലയാളം':
+        return _malayalamContent;
+      default:
+        return _englishContent;
+    }
+  }
 
   final List<Map<String, dynamic>> _englishContent = [
     {
@@ -82,6 +103,76 @@ class _TextbookPageState extends State<TextbookPage> {
           'https://images.unsplash.com/photo-1476231682828-37e95bcad36e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
     },
   ];
+  final List<Map<String, dynamic>> _teluguContent = [
+    {
+      'heading': 'జీవశాస్త్ర పరిచయం',
+      'paragraph':
+          'జీవశాస్త్రం అనేది జీవితం మరియు జీవ జీవుల అధ్యయనానికి సంబంధించిన శాస్త్రశాఖ. ఇది జీవుల నిర్మాణం, రసాయనిక ప్రక్రియలు, మాలిక్యూలర్ పరస్పర చర్యలు, శారీరక రీతులు, అభివృద్ధి మరియు उत्क్రాంతి వంటి విషయాలను కవర్ చేస్తుంది. ఇది సూక్ష్మజీవశాస్త్రం, వృక్షశాస్త్రం, జంతుశాస్త్రం మరియు జీవరసాయన శాస్త్రం వంటి అనేక ఉపశాఖలతో కూడి ఉంటుంది. ఆధునిక జీవశాస్త్రం యొక్క ప్రధాన సూత్రాలలో కణ సిద్ధాంతం, జన్యువుల శాస్త్రం, హోమియోస్టాసిస్ మరియు శక్తి ప్రక్రియలు ఉన్నాయి.',
+      'image':
+          'https://images.unsplash.com/photo-1581093450024-af2a3d6dba5a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
+    },
+    {
+      'heading': 'కణ నిర్మాణం మరియు విధులు',
+      'paragraph':
+          'కణాలు అన్నీ జీవుల ప్రాథమిక నిర్మాణ మరియు క్రియాత్మక घटకాలు. మన శరీరంలో సుమారు 37.2 ట్రిలియన్ కణాలు ఉంటాయి, వాటిలో ప్రతి ఒక్కటి ప్రత్యేక పనిని చేస్తుంది. ప్రోకేరియోటిక్ కణాలు (బాక్టీరియా, ఆర్కియా) మరియు యూకేరియోటిక్ కణాలు (పెద్ద జీవులు) రెండు ప్రధాన రకాలు. ముఖ్య భాగాలలో న్యూక్లియస్ (DNA తో), మైటోకాండ్రియా, ఎండ్‌ప్లాస్మిక్ రెటికులం, గోల్గీ బాడీ, లైసోసోమ్స్, సెల్ మెంబ్రేన్ ఉంటాయి.',
+      'image':
+          'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
+    },
+    {
+      'heading': 'ప్రకాశ సంశ్లేషణ ప్రక్రియ',
+      'paragraph':
+          'ప్రకాశ సంశ్లేషణ అనేది మొక్కలు మరియు కొన్ని సూక్ష్మజీవులు సూర్యుని కాంతి శక్తిని గ్లూకోజ్ రూపంలో రసాయన శక్తిగా మారుస్తారు. ఈ ప్రక్రియ మొక్కల క్లోరోప్లాస్ట్లలో జరుగుతుంది. సమగ్ర రసాయన సమీకరణం: 6CO₂ + 6H₂O + కాంతి శక్తి → C₆H₁₂O₆ + 6O₂. ఇది రెండు దశల్లో జరుగుతుంది: కాంతి ఆధారిత ప్రతిక్రియలు మరియు కెల్విన్ చక్రం. ఇది భూమిపై జీవితం కోసం అవసరమైన ప్రక్రియ.',
+      'image':
+          'https://images.unsplash.com/photo-1476231682828-37e95bcad36e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
+    },
+  ];
+
+  final List<Map<String, dynamic>> _tamilContent = [
+    {
+      'heading': 'உயிரியல் அறிமுகம்',
+      'paragraph':
+          'உயிரியல் என்பது உயிரினங்கள் மற்றும் அவற்றின் அமைப்பு, செயல்பாடு, வளர்ச்சி, பரிணாமம் ஆகியவற்றை பற்றிய அறிவியல் ஆய்வாகும். இது நுண்ணுயிரியல், தாவரவியல், விலங்கியல் மற்றும் உயிர்க்கேமியா போன்ற பன்னிறை கிளைகளை உள்ளடக்கியது. உயிரியல் துறையின் முக்கியக் கோட்பாடுகளில் செல் கோட்பாடு, பரிணாமம், மரபியல், ஹோமியோஸ்டேசிஸ் மற்றும் சக்தி மாற்றம் அடங்கும்.',
+      'image':
+          'https://images.unsplash.com/photo-1581093450024-af2a3d6dba5a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
+    },
+    {
+      'heading': 'செல் அமைப்பும் செயல்பாடும்',
+      'paragraph':
+          'செல்கள் அனைத்து உயிரினங்களின் அடிப்படை அமைப்பு மற்றும் செயல்பாட்டு அலகுகள். மனித உடலில் சுமார் 37.2 டிரில்லியன் செல்கள் உள்ளன. செல்களின் இரண்டு வகைகள் உள்ளன: புரோகேரியோட்டிக் (பாக்டீரியா மற்றும் ஆர்கியா) மற்றும் யூகேரியோட்டிக் (தாவரங்கள், விலங்குகள், பூஞ்சைகள்). முக்கிய கூறுகளில் நியூக்ளியஸ், மைட்டோகாண்ட்ரியா, எண்டோபிளாசமிக் ரெட்டிகுலம், கோல்ஜி ஆபராடஸ், லைசோசோம்கள், செல்மெம்ப்ரேன் ஆகியவை அடங்கும்.',
+      'image':
+          'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
+    },
+    {
+      'heading': 'ஒளிச்சேர்க்கை செயல்முறை',
+      'paragraph':
+          'ஒளிச்சேர்க்கை என்பது தாவரங்கள், ஒட்டுமொத்தம் மற்றும் சில பாக்டீரியாக்கள் ஒளியை குளுக்கோஸ் என்ற வேதியியல் சக்தியாக மாற்றும் செயல். இது தாவரங்களின் குளோரோபிளாஸ்ட்களில் நடைபெறும். மூலவியல் சமன்பாடு: 6CO₂ + 6H₂O + ஒளி சக்தி → C₆H₁₂O₆ + 6O₂. இது ஒளி சார்ந்த மற்றும் கல்வின் சுழற்சி என இரண்டு கட்டங்களைக் கொண்டுள்ளது. இது உயிர்களுக்கு அத்தியாவசியமான ஒரு செயல்.',
+      'image':
+          'https://images.unsplash.com/photo-1476231682828-37e95bcad36e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
+    },
+  ];
+  final List<Map<String, dynamic>> _malayalamContent = [
+    {
+      'heading': 'ജീവശാസ്ത്രം പരിചയം',
+      'paragraph':
+          'ജീവശാസ്ത്രം എന്നത് ജീവനും ജീവികളുമായുള്ള ശാസ്ത്രീയ പഠനമാണ്. ഇത് ശരീരഘടന, രാസപ്രക്രിയകൾ, ജീനുകൾ, ആവർത്തനം, ഉത്പത്തി, വികാസം എന്നിവയെ ഉൾക്കൊള്ളുന്നു. ഇത് സൂക്ഷ്മജീവശാസ്ത്രം, താവരശാസ്ത്രം, മൃഗശാസ്ത്രം, ജൈവരസതന്ത്രം എന്നിവ ഉൾപ്പെടുന്ന ഒരു വ്യാപകമായ ശാഖയാണ്. പ്രധാന തത്വങ്ങൾ: സെൽ തിയറി, ജനിതകശാസ്ത്രം, ഹോംയോസ്റ്റാസിസ്, ഊർജ്ജം കൈമാറ്റം.',
+      'image':
+          'https://images.unsplash.com/photo-1581093450024-af2a3d6dba5a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
+    },
+    {
+      'heading': 'കോശ ഘടനയും പ്രവർത്തിയും',
+      'paragraph':
+          'കോശങ്ങൾ എല്ലായ്പ്പോഴും ജീവികളുടെ അടിസ്ഥാന ഘടകങ്ങളാണ്. മനുഷ്യശരീരത്തിൽ ഏകദേശം 37.2 ട്രില്യൺ കോശങ്ങളുണ്ട്. പ്രധാന കോശങ്ങൾ: പ്രോകാരിയോട്ടിക് (ബാക്ടീരിയ, ആർക്കിയ) & യൂകാരിയോട്ടിക് (താവരങ്ങൾ, മൃഗങ്ങൾ). പ്രധാന ഘടകങ്ങൾ: ന്യൂക്ലിയസ്, മൈറ്റോകോണ്ട്രിയ, എണ്ടോപ്ലാസ്മിക് റെറ്റിക്കുലം, ഗോള്ജി ബോഡി, ലൈസോസോമുകൾ, കോശതാളം.',
+      'image':
+          'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
+    },
+    {
+      'heading': 'പ്രകാശസംശ്ലേഷണ പ്രക്രിയ',
+      'paragraph':
+          'പ്രകാശസംശ്ലേഷണം എന്നത് സസ്യങ്ങൾ, അല്ഗി, ചില ബാക്ടീരിയകൾ സൂര്യപ്രകാശം ഉപയോഗിച്ച് രാസ ഊർജ്ജമാക്കി ഗ്ലൂക്കോസ് രൂപപ്പെടുത്തുന്ന പ്രക്രിയയാണ്. ഈ പ്രക്രിയ ക്ളോറോപ്ലാസ്റ്റിൽ നടക്കുന്നു. രാസസമീകരണം: 6CO₂ + 6H₂O + പ്രകാശ ഊർജം → C₆H₁₂O₆ + 6O₂. പ്രധാന ഘട്ടങ്ങൾ: പ്രകാശ ആശ്രിത പ്രതികരണങ്ങൾ, കാല്വിൻ ചക്രം. ഭൂമിയിലെ ജീവൻ നിലനിർത്താൻ ഇത് അത്യാവശ്യമാണ്.',
+      'image':
+          'https://images.unsplash.com/photo-1476231682828-37e95bcad36e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
+    },
+  ];
 
   @override
   void initState() {
@@ -92,11 +183,12 @@ class _TextbookPageState extends State<TextbookPage> {
   Future<void> _initTts() async {
     try {
       // Set default language based on selection
-      await _flutterTts.setLanguage(_selectedLanguage == 'English' ? 'en-US' : 'hi-IN');
-      
+      await _flutterTts
+          .setLanguage(_selectedLanguage == 'English' ? 'en-US' : 'hi-IN');
+
       // Get available voices
       var voices = await _flutterTts.getVoices;
-      
+
       // Safely convert voices to the correct type
       if (voices != null) {
         _voices = [];
@@ -162,7 +254,12 @@ class _TextbookPageState extends State<TextbookPage> {
 
       // Find a voice that matches the gender
       var voice = _voices.firstWhere(
-        (v) => v['name']?.toString().toLowerCase().contains(gender.toLowerCase()) ?? false,
+        (v) =>
+            v['name']
+                ?.toString()
+                .toLowerCase()
+                .contains(gender.toLowerCase()) ??
+            false,
         orElse: () => _voices.first,
       );
 
@@ -174,7 +271,7 @@ class _TextbookPageState extends State<TextbookPage> {
       };
 
       await _flutterTts.setVoice(voiceMap);
-      
+
       if (mounted) {
         setState(() {
           _selectedVoiceGender = gender;
@@ -207,8 +304,26 @@ class _TextbookPageState extends State<TextbookPage> {
       }
 
       // Set language before speaking
-      await _flutterTts.setLanguage(_selectedLanguage == 'English' ? 'en-US' : 'hi-IN');
-      
+      String languageCode = 'en-US';
+      switch (_selectedLanguage) {
+        case 'English':
+          languageCode = 'en-US';
+          break;
+        case 'हिंदी':
+          languageCode = 'hi-IN';
+          break;
+        case 'తెలుగు':
+          languageCode = 'te-IN';
+          break;
+        case 'தமிழ்':
+          languageCode = 'ta-IN';
+          break;
+        case 'മലയാളം':
+          languageCode = 'ml-IN';
+          break;
+      }
+      await _flutterTts.setLanguage(languageCode);
+
       if (!_isTtsInitialized) {
         await _initTts();
       }
@@ -241,7 +356,7 @@ class _TextbookPageState extends State<TextbookPage> {
     try {
       // First cancel any ongoing speech
       await _flutterTts.stop();
-      
+
       // Reset the speaking state
       if (mounted) {
         setState(() {
@@ -249,7 +364,7 @@ class _TextbookPageState extends State<TextbookPage> {
           _currentlySpeakingIndex = null;
         });
       }
-      
+
       // Add a small delay to ensure the state is properly updated
       await Future.delayed(const Duration(milliseconds: 100));
     } catch (e) {
@@ -270,12 +385,12 @@ class _TextbookPageState extends State<TextbookPage> {
     try {
       // Stop any ongoing speech
       _flutterTts.stop();
-      
+
       // Clear all handlers with empty callbacks
       _flutterTts.setCompletionHandler(() {});
       _flutterTts.setErrorHandler((_) {});
       _flutterTts.setCancelHandler(() {});
-      
+
       // Reset state
       if (mounted) {
         setState(() {
@@ -304,7 +419,9 @@ class _TextbookPageState extends State<TextbookPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _selectedLanguage == 'English' ? 'Biology Textbook' : 'जीव विज्ञान पाठ्यपुस्तक',
+          _selectedLanguage == 'English'
+              ? 'Biology Textbook'
+              : 'जीव विज्ञान पाठ्यपुस्तक',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -333,13 +450,15 @@ class _TextbookPageState extends State<TextbookPage> {
                     fontFamily: GoogleFonts.poppins().fontFamily,
                   ),
                   onChanged: _changeLanguage,
-                  items: _languages.map<DropdownMenuItem<String>>((String value) {
+                  items:
+                      _languages.map<DropdownMenuItem<String>>((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
                       child: Text(
                         value,
                         style: TextStyle(
-                          fontFamily: value == 'हिंदी' ? 'Noto Sans Devanagari' : null,
+                          fontFamily:
+                              value == 'हिंदी' ? 'Noto Sans Devanagari' : null,
                         ),
                       ),
                     );
@@ -377,7 +496,7 @@ class _TextbookPageState extends State<TextbookPage> {
               ),
             ],
           ),
-          
+
           // Voice selection
           PopupMenuButton<String>(
             icon: const Icon(Icons.record_voice_over),
@@ -559,7 +678,8 @@ class _TextbookPageState extends State<TextbookPage> {
                                   borderRadius: BorderRadius.circular(30),
                                   onTap: isSpeaking
                                       ? _stopSpeaking
-                                      : () => _speak(section['paragraph'], index),
+                                      : () =>
+                                          _speak(section['paragraph'], index),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 16,

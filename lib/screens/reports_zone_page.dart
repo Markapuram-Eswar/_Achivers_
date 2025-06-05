@@ -113,7 +113,37 @@ class _ReportsZonePageState extends State<ReportsZonePage>
                   ),
                 ),
               ),
-              pw.SizedBox(height: 16),
+              pw.SizedBox(height: 24),
+              
+              // Report Format
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.blue900, width: 1),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Report Format',
+                      style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.blue900,
+                      ),
+                    ),
+                    pw.SizedBox(height: 12),
+                    pw.Text('Subject: '),
+                    pw.SizedBox(height: 8),
+                    pw.Text('Domains: test zone / practice / doubts'),
+                    pw.SizedBox(height: 8),
+                    pw.Text('Date: $formattedDate'),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 24),
 
               // Report Info
               pw.Row(
