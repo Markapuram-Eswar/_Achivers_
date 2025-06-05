@@ -1,8 +1,8 @@
 plugins {
-    id 'com.android.application' // Android application module
-    id 'kotlin-android' // Kotlin support
-    id 'com.google.gms.google-services' // Google Services (e.g., Firebase)
-    id 'dagger.hilt.android.plugin' // Hilt for dependency injection (optional)
+    id 'com.android.application'; // Android application module
+    id 'kotlin-android' ;// Kotlin support
+    id 'com.google.gms.google-services'; // Google Services (e.g., Firebase)
+    id 'dagger.hilt.android.plugin' ;// Hilt for dependency injection (optional)
 }
 
 android {

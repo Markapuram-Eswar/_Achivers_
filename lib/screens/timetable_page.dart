@@ -5,6 +5,12 @@ import 'package:table_calendar/table_calendar.dart';
 import '../services/AttendanceService.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+void main() {
+  runApp(const MaterialApp(
+    home: AttendanceCalendarPage(),
+  ));
+}
+
 class AttendanceCalendarPage extends StatefulWidget {
   const AttendanceCalendarPage({super.key});
 

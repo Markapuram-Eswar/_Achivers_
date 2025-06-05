@@ -44,7 +44,7 @@ class McqPageState extends State<McqPage> {
   Future<void> _loadQuestions() async {
     try {
       setState(() => _isLoading = true);
-      
+
       // Fetch questions from Firestore using testId
       final testId = widget.topicData['testId'];
       if (testId == null) {
@@ -71,14 +71,17 @@ class McqPageState extends State<McqPage> {
       }
 
       // Convert questions array to the required format
-      final questionsList = List<Map<String, dynamic>>.from(testData['questions']).map((q) {
+      final questionsList =
+          List<Map<String, dynamic>>.from(testData['questions']).map((q) {
         return {
           'question': q['question'] ?? 'Question not available',
           'options': List<String>.from(q['options'] ?? []),
-          'correctAnswer': q['correctOptions'] != null && (q['correctOptions'] as List).isNotEmpty 
-              ? (q['correctOptions'] as List).first 
+          'correctAnswer': q['correctOptions'] != null &&
+                  (q['correctOptions'] as List).isNotEmpty
+              ? (q['correctOptions'] as List).first
               : 0,
-          'explanation': 'This is a ${q['type'] ?? 'multiple choice'} question from section ${q['section'] ?? 'A'}',
+          'explanation':
+              'This is a ${q['type'] ?? 'multiple choice'} question from section ${q['section'] ?? 'A'}',
           'type': q['type'] ?? 'multipleChoice',
           'section': q['section'] ?? 'A',
         };
@@ -114,7 +117,8 @@ class McqPageState extends State<McqPage> {
   }
 
   bool get _allQuestionsAnswered {
-    return _questions.isNotEmpty && !_selectedAnswers.any((answer) => answer == null);
+    return _questions.isNotEmpty &&
+        !_selectedAnswers.any((answer) => answer == null);
   }
 
   Future<void> _submitQuiz() async {
@@ -893,7 +897,9 @@ class McqPageState extends State<McqPage> {
           child: Row(
             children: [
               Icon(
-                questionType == 'multipleChoice' ? Icons.check_circle_outline : Icons.radio_button_checked,
+                questionType == 'multipleChoice'
+                    ? Icons.check_circle_outline
+                    : Icons.radio_button_checked,
                 size: 16,
                 color: widget.subjectData['color'],
               ),
@@ -944,7 +950,8 @@ class McqPageState extends State<McqPage> {
             backgroundColor = isSelected
                 ? widget.subjectData['color'].withOpacity(0.1)
                 : Colors.grey.withOpacity(0.1);
-            borderColor = isSelected ? widget.subjectData['color'] : Colors.grey;
+            borderColor =
+                isSelected ? widget.subjectData['color'] : Colors.grey;
           }
 
           return GestureDetector(
@@ -991,7 +998,8 @@ class McqPageState extends State<McqPage> {
                       options[index],
                       style: TextStyle(
                         fontSize: 16,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
                   ),

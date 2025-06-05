@@ -7,7 +7,8 @@ class AttendanceService {
   String normalizeClassName(String className) {
     // Remove "Class" prefix if present
     String normalized = className.replaceAll('Class ', '');
-    normalized = normalized.replaceAll('class ', ''); // Also handle lowercase 'class'
+    normalized =
+        normalized.replaceAll('class ', ''); // Also handle lowercase 'class'
 
     // Remove "th", "st", "nd", "rd" suffixes if present
     normalized = normalized.replaceAll(RegExp(r'(th|st|nd|rd)$'), '');
@@ -46,30 +47,36 @@ class AttendanceService {
         final data = doc.data() as Map<String, dynamic>;
         final studentClass = data['class']?.toString() ?? '';
         final normalizedStudentClass = normalizeClassName(studentClass);
-        
-        print('Comparing student class: "$studentClass" (normalized: "$normalizedStudentClass") with query class: "$normalizedClass"');
-        
+
+        print(
+            'Comparing student class: "$studentClass" (normalized: "$normalizedStudentClass") with query class: "$normalizedClass"');
+
         return normalizedStudentClass == normalizedClass;
       }).toList();
 
       if (filteredDocs.isEmpty) {
-        print('No students found for class: $normalizedClass, section: $section');
+        print(
+            'No students found for class: $normalizedClass, section: $section');
         return [];
       }
 
       print('Found ${filteredDocs.length} matching students');
-      
+
       return filteredDocs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
         return {
           'id': doc.id,
           'name': data['name'] ?? 'Unknown',
-          'rollNo': data['rollNumber'] ?? '', // Changed from rollNo to rollNumber
+          'rollNo':
+              data['rollNumber'] ?? '', // Changed from rollNo to rollNumber
           'class': data['class'] ?? normalizedClass,
           'section': data['section'] ?? section,
-          'admissionNo': data['rollNumber'] ?? '', // Using rollNumber as admissionNo
-          'parentName': data['fullName'] ?? '', // Changed from parentName to fullName
-          'parentPhone': data['parentEmail'] ?? '', // Changed from parentPhone to parentEmail
+          'admissionNo':
+              data['rollNumber'] ?? '', // Using rollNumber as admissionNo
+          'parentName':
+              data['fullName'] ?? '', // Changed from parentName to fullName
+          'parentPhone': data['parentEmail'] ??
+              '', // Changed from parentPhone to parentEmail
           ...data,
         };
       }).toList();
@@ -84,7 +91,8 @@ class AttendanceService {
     required String className,
     required String section,
     required String date,
-    required Map<String, bool> studentAttendance, // Map of studentId to attendance status
+    required Map<String, bool>
+        studentAttendance, // Map of studentId to attendance status
     String? remarks,
   }) async {
     try {
@@ -124,8 +132,8 @@ class AttendanceService {
         final studentData = studentDoc.data();
 
         if (studentData != null) {
-          final attendanceSummary = Map<String, dynamic>.from(
-              studentData['attendanceSummary'] ?? {});
+          final attendanceSummary =
+              Map<String, dynamic>.from(studentData['attendanceSummary'] ?? {});
 
           // Update monthly attendance
           final month = date.substring(0, 7); // Format: YYYY-MM
@@ -144,18 +152,20 @@ class AttendanceService {
             monthData['absent'] = (monthData['absent'] ?? 0) + 1;
           }
           monthData['total'] = (monthData['total'] ?? 0) + 1;
-          monthData['percentage'] = (monthData['present'] / monthData['total'] * 100)
-              .toStringAsFixed(1);
+          monthData['percentage'] =
+              (monthData['present'] / monthData['total'] * 100)
+                  .toStringAsFixed(1);
 
           attendanceSummary[month] = monthData;
 
           // Update overall attendance
-          final overall = Map<String, dynamic>.from(
-              attendanceSummary['overall'] ?? {
-                'present': 0,
-                'absent': 0,
-                'total': 0,
-              });
+          final overall =
+              Map<String, dynamic>.from(attendanceSummary['overall'] ??
+                  {
+                    'present': 0,
+                    'absent': 0,
+                    'total': 0,
+                  });
 
           if (isPresent) {
             overall['present'] = (overall['present'] ?? 0) + 1;
@@ -207,12 +217,15 @@ class AttendanceService {
   }
 
   // Get attendance summary for a student
-  Future<Map<String, dynamic>> getStudentAttendanceSummary(String studentId) async {
+  Future<Map<String, dynamic>> getStudentAttendanceSummary(
+      String studentId) async {
     try {
-      final studentDoc = await _firestore.collection('students').doc(studentId).get();
+      final studentDoc =
+          await _firestore.collection('students').doc(studentId).get();
       final studentData = studentDoc.data();
 
-      if (studentData == null || !studentData.containsKey('attendanceSummary')) {
+      if (studentData == null ||
+          !studentData.containsKey('attendanceSummary')) {
         return {
           'overall': {
             'present': 0,
@@ -224,14 +237,16 @@ class AttendanceService {
         };
       }
 
-      final attendanceSummary = Map<String, dynamic>.from(studentData['attendanceSummary']);
+      final attendanceSummary =
+          Map<String, dynamic>.from(studentData['attendanceSummary']);
       return {
-        'overall': attendanceSummary['overall'] ?? {
-          'present': 0,
-          'absent': 0,
-          'total': 0,
-          'percentage': '0.0',
-        },
+        'overall': attendanceSummary['overall'] ??
+            {
+              'present': 0,
+              'absent': 0,
+              'total': 0,
+              'percentage': '0.0',
+            },
         'monthly': Map<String, dynamic>.from(attendanceSummary)
           ..remove('overall'),
       };
@@ -278,7 +293,8 @@ class AttendanceService {
   ) async {
     try {
       final normalizedClass = normalizeClassName(className);
-      print('Checking attendance for class: $normalizedClass, section: $section, date: $date');
+      print(
+          'Checking attendance for class: $normalizedClass, section: $section, date: $date');
 
       final QuerySnapshot snapshot = await _firestore
           .collection('attendance')
@@ -305,7 +321,8 @@ class AttendanceService {
   }
 
   // Get all attendance records for a student (by date)
-  Future<List<Map<String, dynamic>>> getStudentAttendanceRecords(String studentId) async {
+  Future<List<Map<String, dynamic>>> getStudentAttendanceRecords(
+      String studentId) async {
     try {
       final QuerySnapshot snapshot = await _firestore
           .collection('attendance')
@@ -328,4 +345,4 @@ class AttendanceService {
       rethrow;
     }
   }
-} 
+}

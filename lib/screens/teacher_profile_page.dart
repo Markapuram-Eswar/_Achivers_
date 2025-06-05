@@ -20,9 +20,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   // Dropdown state
   String? _selectedClass;
   String? _selectedSection;
-  final List<String> _classes = [
-    '6', '7', '8', '9', '10', '11', '12'
-  ];
+  final List<String> _classes = ['6', '7', '8', '9', '10', '11', '12'];
   final List<String> _sections = ['A', 'B', 'C', 'D'];
   bool _isUpdatingClassSection = false;
   bool _isEditingClassSection = false;
@@ -84,7 +82,8 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
 
   Future<void> _updateClassSection() async {
     final String? teacherId = await AuthService.getUserId();
-    if (teacherId == null || _selectedClass == null || _selectedSection == null) return;
+    if (teacherId == null || _selectedClass == null || _selectedSection == null)
+      return;
     setState(() => _isUpdatingClassSection = true);
     try {
       await TeacherProfileService().updateTeacherClassSection(
@@ -240,7 +239,8 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
           children: [
             _buildSectionHeader('Personal Information', Icons.info_outline),
             const SizedBox(height: 16),
-            _buildInfoItem('Education', teacherData?['education'], Icons.school),
+            _buildInfoItem(
+                'Education', teacherData?['education'], Icons.school),
             _buildInfoItem('Email', teacherData?['email'], Icons.email),
             _buildInfoItem('Phone', teacherData?['phone'], Icons.phone),
           ],
@@ -265,7 +265,8 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
               children: [
                 _buildSectionHeader('Classes Teaching', Icons.class_),
                 IconButton(
-                  icon: Icon(_isAddingClass ? Icons.close : Icons.add, color: Colors.blue[700]),
+                  icon: Icon(_isAddingClass ? Icons.close : Icons.add,
+                      color: Colors.blue[700]),
                   tooltip: _isAddingClass ? 'Cancel' : 'Add Class',
                   onPressed: () {
                     setState(() {
@@ -307,7 +308,8 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                 ],
               ),
             if (classesList.isEmpty)
-              const Text('No classes assigned yet.', style: TextStyle(color: Colors.grey)),
+              const Text('No classes assigned yet.',
+                  style: TextStyle(color: Colors.grey)),
             // Add class form
             if (_isAddingClass)
               Padding(
@@ -317,20 +319,24 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                     DropdownButton<String>(
                       value: _newClass,
                       hint: const Text('Class'),
-                      items: _classes.map((c) => DropdownMenuItem(
-                        value: c,
-                        child: Text('Class $c'),
-                      )).toList(),
+                      items: _classes
+                          .map((c) => DropdownMenuItem(
+                                value: c,
+                                child: Text('Class $c'),
+                              ))
+                          .toList(),
                       onChanged: (val) => setState(() => _newClass = val),
                     ),
                     const SizedBox(width: 16),
                     DropdownButton<String>(
                       value: _newSection,
                       hint: const Text('Section'),
-                      items: _sections.map((s) => DropdownMenuItem(
-                        value: s,
-                        child: Text('Section $s'),
-                      )).toList(),
+                      items: _sections
+                          .map((s) => DropdownMenuItem(
+                                value: s,
+                                child: Text('Section $s'),
+                              ))
+                          .toList(),
                       onChanged: (val) => setState(() => _newSection = val),
                     ),
                     const SizedBox(width: 16),
@@ -354,7 +360,8 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue[700],
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
                       ),
                       child: const Text('Add'),
                     ),

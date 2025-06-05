@@ -48,21 +48,25 @@ class TestService {
           .where('section', isEqualTo: section.trim())
           .get();
 
-      print('Found ${studentsSnapshot.docs.length} students in section $section');
+      print(
+          'Found ${studentsSnapshot.docs.length} students in section $section');
 
       // Filter students by class format
       final matchingStudents = studentsSnapshot.docs.where((doc) {
         final studentData = doc.data();
         final studentClass = studentData['class']?.toString().trim() ?? '';
-        
+
         // Handle different class formats
-        final normalizedStudentClass = studentClass.replaceAll(RegExp(r'[^0-9]'), '');
-        final normalizedTestClass = classLevel.replaceAll(RegExp(r'[^0-9]'), '');
-        
+        final normalizedStudentClass =
+            studentClass.replaceAll(RegExp(r'[^0-9]'), '');
+        final normalizedTestClass =
+            classLevel.replaceAll(RegExp(r'[^0-9]'), '');
+
         return normalizedStudentClass == normalizedTestClass;
       }).toList();
 
-      print('Found ${matchingStudents.length} students matching class $classLevel');
+      print(
+          'Found ${matchingStudents.length} students matching class $classLevel');
 
       if (matchingStudents.isEmpty) {
         throw 'No students found in class $classLevel section $section';
@@ -71,22 +75,24 @@ class TestService {
       // Step 3: Update each student doc with the test info under subjects
       for (var doc in matchingStudents) {
         try {
-        final studentRef = doc.reference;
+          final studentRef = doc.reference;
           final studentData = doc.data();
           print('Processing student: ${studentData['name'] ?? 'Unknown'}');
 
           // Get existing subjects or initialize empty map
-          Map<String, dynamic> subjects = Map<String, dynamic>.from(studentData['subjects'] ?? {});
-          
+          Map<String, dynamic> subjects =
+              Map<String, dynamic>.from(studentData['subjects'] ?? {});
+
           // Get existing tests for this subject or initialize empty list
-          List<dynamic> subjectTests = List<dynamic>.from(subjects[subject]?['tests'] ?? []);
-          
+          List<dynamic> subjectTests =
+              List<dynamic>.from(subjects[subject]?['tests'] ?? []);
+
           // Add new test
           subjectTests.add({
-              'testId': testId,
-              'subject': subject.trim(),
-              'testName': '$subject Test',
-              'status': 'pending',
+            'testId': testId,
+            'subject': subject.trim(),
+            'testName': '$subject Test',
+            'status': 'pending',
             'date': Timestamp.fromDate(date),
             'time': time.trim(),
             'duration': duration,
@@ -97,14 +103,17 @@ class TestService {
           subjects[subject] = {
             'tests': subjectTests,
             'totalTests': subjectTests.length,
-            'completedTests': subjectTests.where((test) => test['status'] == 'completed').length,
+            'completedTests': subjectTests
+                .where((test) => test['status'] == 'completed')
+                .length,
           };
 
           // Update student document
           await studentRef.update({
             'subjects': subjects,
           });
-          print('Successfully updated test for student: ${studentData['name'] ?? 'Unknown'}');
+          print(
+              'Successfully updated test for student: ${studentData['name'] ?? 'Unknown'}');
         } catch (e) {
           print('Error updating student ${doc.id}: $e');
           // Continue with next student even if one fails
@@ -193,13 +202,13 @@ class TestService {
     subjects.forEach((subject, data) {
       final List<dynamic> subjectTests = data['tests'] ?? [];
       allTests.addAll(subjectTests.map((test) => {
-        ...test,
-        'subject': subject,
-        'subjectData': {
-          'totalTests': data['totalTests'] ?? 0,
-          'completedTests': data['completedTests'] ?? 0,
-        },
-      }));
+            ...test,
+            'subject': subject,
+            'subjectData': {
+              'totalTests': data['totalTests'] ?? 0,
+              'completedTests': data['completedTests'] ?? 0,
+            },
+          }));
     });
 
     return allTests;
@@ -222,20 +231,23 @@ class TestService {
       }
 
       // Get the student document
-      final studentDoc = await _firestore.collection('students').doc(userId).get();
+      final studentDoc =
+          await _firestore.collection('students').doc(userId).get();
       final studentData = studentDoc.data();
-      
+
       if (studentData == null || !studentData.containsKey('subjects')) {
         throw Exception('Student data not found');
       }
 
       // Get the subjects map
-      Map<String, dynamic> subjects = Map<String, dynamic>.from(studentData['subjects']);
-      
+      Map<String, dynamic> subjects =
+          Map<String, dynamic>.from(studentData['subjects']);
+
       // Find the subject containing the test
       String? subjectWithTest;
       for (var entry in subjects.entries) {
-        final subjectTests = List<Map<String, dynamic>>.from(entry.value['tests'] ?? []);
+        final subjectTests =
+            List<Map<String, dynamic>>.from(entry.value['tests'] ?? []);
         if (subjectTests.any((test) => test['testId'] == testId)) {
           subjectWithTest = entry.key;
           break;
@@ -247,9 +259,11 @@ class TestService {
       }
 
       // Update the test in the subject's tests array
-      List<Map<String, dynamic>> subjectTests = List<Map<String, dynamic>>.from(subjects[subjectWithTest]['tests']);
-      final testIndex = subjectTests.indexWhere((test) => test['testId'] == testId);
-      
+      List<Map<String, dynamic>> subjectTests =
+          List<Map<String, dynamic>>.from(subjects[subjectWithTest]['tests']);
+      final testIndex =
+          subjectTests.indexWhere((test) => test['testId'] == testId);
+
       if (testIndex == -1) {
         throw Exception('Test not found in subject');
       }
@@ -262,16 +276,15 @@ class TestService {
 
       // Update the subject's tests array
       subjects[subjectWithTest]['tests'] = subjectTests;
-      
+
       // Update completed tests count
-      subjects[subjectWithTest]['completedTests'] = 
+      subjects[subjectWithTest]['completedTests'] =
           subjectTests.where((test) => test['status'] == 'completed').length;
 
       // Update the student document
       await _firestore.collection('students').doc(userId).update({
         'subjects': subjects,
       });
-
     } catch (e) {
       print('Error updating test status: $e');
       rethrow;
@@ -288,25 +301,27 @@ class TestService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getStudentTestResults(String studentId) async {
+  Future<List<Map<String, dynamic>>> getStudentTestResults(
+      String studentId) async {
     try {
       final doc = await _firestore.collection('students').doc(studentId).get();
       final data = doc.data();
       if (data == null || !data.containsKey('subjects')) {
         return [];
       }
-      
+
       final subjects = data['subjects'] as Map<String, dynamic>;
       List<Map<String, dynamic>> allTests = [];
-      
+
       subjects.forEach((subject, subjectData) {
-        final tests = List<Map<String, dynamic>>.from(subjectData['tests'] ?? []);
+        final tests =
+            List<Map<String, dynamic>>.from(subjectData['tests'] ?? []);
         allTests.addAll(tests.map((test) => {
-          ...test,
-          'subject': subject,
-        }));
+              ...test,
+              'subject': subject,
+            }));
       });
-      
+
       return allTests;
     } catch (e) {
       print('Error getting student test results: $e');

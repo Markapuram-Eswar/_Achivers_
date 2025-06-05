@@ -14,7 +14,7 @@ class AttendanceService {
     try {
       // Create main attendance document
       final attendanceDocRef = _firestore.collection('attendance').doc();
-      
+
       final attendanceData = {
         'class': classId,
         'section': section,
@@ -25,13 +25,14 @@ class AttendanceService {
 
       // Batch write for atomic operation
       final batch = _firestore.batch();
-      
+
       // Set main attendance document
       batch.set(attendanceDocRef, attendanceData);
-      
+
       // Add student attendance records
       for (final entry in attendanceRecords.entries) {
-        final studentDocRef = attendanceDocRef.collection('students').doc(entry.key);
+        final studentDocRef =
+            attendanceDocRef.collection('students').doc(entry.key);
         batch.set(studentDocRef, {
           'status': entry.value,
           'studentName': entry.key,

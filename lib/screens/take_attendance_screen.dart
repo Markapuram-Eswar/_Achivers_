@@ -14,7 +14,13 @@ class TakeAttendanceScreen extends StatefulWidget {
 
 class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
   final _attendanceService = AttendanceService();
-  List<String> _classes = ["class 6", "class 7", "class 8", "class 9", "class 10"];
+  List<String> _classes = [
+    "class 6",
+    "class 7",
+    "class 8",
+    "class 9",
+    "class 10"
+  ];
   String? _selectedClass;
   final List<String> _sections = ['A', 'B', 'C', 'D'];
   String? _selectedSection;
@@ -94,13 +100,11 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
       _existingAttendance = null;
     });
     try {
-      final students = await _attendanceService.getStudentsByClassAndSection(className, section);
+      final students = await _attendanceService.getStudentsByClassAndSection(
+          className, section);
       setState(() {
         _students = students;
-        _attendance = {
-          for (var student in students) 
-            student['id']: false
-        };
+        _attendance = {for (var student in students) student['id']: false};
         _isLoading = false;
       });
       _checkExistingAttendance();
@@ -242,7 +246,8 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                DateFormat('MMMM d, yyyy').format(_selectedDate),
+                                DateFormat('MMMM d, yyyy')
+                                    .format(_selectedDate),
                               ),
                               Icon(Icons.calendar_today,
                                   size: 16, color: Colors.blue[700]),
@@ -269,7 +274,6 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
               ],
             ),
           ),
-
           if (_isCheckingAttendance)
             const Padding(
               padding: EdgeInsets.all(16.0),
@@ -297,14 +301,14 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                 ],
               ),
             ),
-
           if (!_isLoading && _students.isNotEmpty)
             Expanded(
               child: Column(
                 children: [
                   if (_existingAttendance == null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       color: Colors.white,
                       margin: const EdgeInsets.only(top: 1),
                       child: Row(
@@ -331,7 +335,6 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                         ],
                       ),
                     ),
-
                   Expanded(
                     child: ListView.builder(
                       padding: const EdgeInsets.all(16),
@@ -356,13 +359,15 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                               vertical: 8,
                             ),
                             leading: CircleAvatar(
-                              backgroundColor:
-                                  isPresent ? Colors.green[50] : Colors.grey[100],
+                              backgroundColor: isPresent
+                                  ? Colors.green[50]
+                                  : Colors.grey[100],
                               child: Text(
                                 student['name'].toString().split(' ')[0][0],
                                 style: TextStyle(
-                                  color:
-                                      isPresent ? Colors.green[700] : Colors.grey[600],
+                                  color: isPresent
+                                      ? Colors.green[700]
+                                      : Colors.grey[600],
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -412,8 +417,9 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                                           });
                                         },
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              isPresent ? Colors.green : Colors.grey[200],
+                                          backgroundColor: isPresent
+                                              ? Colors.green
+                                              : Colors.grey[200],
                                           elevation: 0,
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 16,
@@ -423,8 +429,9 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                                         child: Text(
                                           'Present',
                                           style: TextStyle(
-                                            color:
-                                                isPresent ? Colors.white : Colors.grey[600],
+                                            color: isPresent
+                                                ? Colors.white
+                                                : Colors.grey[600],
                                           ),
                                         ),
                                       ),
@@ -436,8 +443,9 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                                           });
                                         },
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              !isPresent ? Colors.red : Colors.grey[200],
+                                          backgroundColor: !isPresent
+                                              ? Colors.red
+                                              : Colors.grey[200],
                                           elevation: 0,
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 16,
@@ -447,8 +455,9 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                                         child: Text(
                                           'Absent',
                                           style: TextStyle(
-                                            color:
-                                                !isPresent ? Colors.white : Colors.grey[600],
+                                            color: !isPresent
+                                                ? Colors.white
+                                                : Colors.grey[600],
                                           ),
                                         ),
                                       ),
@@ -462,8 +471,9 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                 ],
               ),
             ),
-
-          if (!_isLoading && _students.isNotEmpty && _existingAttendance == null)
+          if (!_isLoading &&
+              _students.isNotEmpty &&
+              _existingAttendance == null)
             Container(
               padding: const EdgeInsets.all(16),
               color: Colors.white,
@@ -479,7 +489,8 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Icon(Icons.check_circle_outline, color: Colors.white),
+                      : const Icon(Icons.check_circle_outline,
+                          color: Colors.white),
                   label: Text(
                     _isSubmitting ? 'Submitting...' : 'Submit Attendance',
                     style: const TextStyle(
@@ -489,7 +500,8 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isSubmitting ? Colors.blue[400] : Colors.blue[700],
+                    backgroundColor:
+                        _isSubmitting ? Colors.blue[400] : Colors.blue[700],
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -512,19 +524,19 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
       );
       return;
     }
-    
+
     if (_attendance.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No students to submit')),
       );
       return;
     }
-    
+
     setState(() => _isSubmitting = true);
-    
+
     try {
       final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
-      
+
       await _attendanceService.markAttendance(
         className: _selectedClass!,
         section: _selectedSection!,
@@ -532,7 +544,7 @@ class _TakeAttendanceScreenState extends State<TakeAttendanceScreen> {
         studentAttendance: _attendance,
         remarks: 'Regular attendance',
       );
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Attendance saved successfully'),

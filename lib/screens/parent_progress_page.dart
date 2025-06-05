@@ -22,7 +22,10 @@ class _ProgressZonePageState extends State<ProgressPage> {
   String? _error;
 
   String get _studentRollNo {
-    return widget.child['rollNumber'] ?? widget.child['rollNo'] ?? widget.child['id'] ?? '';
+    return widget.child['rollNumber'] ??
+        widget.child['rollNo'] ??
+        widget.child['id'] ??
+        '';
   }
 
   String get _studentName {
@@ -84,17 +87,20 @@ class _ProgressZonePageState extends State<ProgressPage> {
     if (_error != null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Progress Zone', style: TextStyle(color: Colors.white)),
+          title: const Text('Progress Zone',
+              style: TextStyle(color: Colors.white)),
           backgroundColor: Colors.amber,
           iconTheme: const IconThemeData(color: Colors.white),
         ),
-        body: Center(child: Text(_error!, style: const TextStyle(color: Colors.red))),
+        body: Center(
+            child: Text(_error!, style: const TextStyle(color: Colors.red))),
       );
     }
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Progress Zone', style: TextStyle(color: Colors.white)),
+          title: const Text('Progress Zone',
+              style: TextStyle(color: Colors.white)),
           backgroundColor: Colors.amber,
           iconTheme: const IconThemeData(color: Colors.white),
         ),
@@ -106,7 +112,8 @@ class _ProgressZonePageState extends State<ProgressPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Progress Zone', style: TextStyle(color: Colors.white)),
+        title:
+            const Text('Progress Zone', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.amber,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
@@ -120,15 +127,18 @@ class _ProgressZonePageState extends State<ProgressPage> {
               // Child details card
               Card(
                 color: Colors.amber[50],
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 margin: const EdgeInsets.only(bottom: 16),
                 child: ListTile(
                   leading: const CircleAvatar(
                     backgroundColor: Colors.amber,
                     child: Icon(Icons.person, color: Colors.white),
                   ),
-                  title: Text(_studentName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('Roll No: $_studentRollNo\nClass: $_studentClass  Section: $_studentSection'),
+                  title: Text(_studentName,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(
+                      'Roll No: $_studentRollNo\nClass: $_studentClass  Section: $_studentSection'),
                 ),
               ),
               const Text(

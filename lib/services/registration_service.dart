@@ -16,15 +16,13 @@ class RegistrationService {
   }) async {
     try {
       // Check if student already exists
-      final existingStudent = await _firestore
-          .collection('students')
-          .doc(rollNumber)
-          .get();
-      
+      final existingStudent =
+          await _firestore.collection('students').doc(rollNumber).get();
+
       if (existingStudent.exists) {
         throw 'A student with this roll number already exists';
       }
-      
+
       // Create student record
       await _firestore.collection('students').doc(rollNumber).set({
         'rollNumber': rollNumber,
@@ -34,7 +32,7 @@ class RegistrationService {
         'parentEmail': parentEmail,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      
+
       Fluttertoast.showToast(msg: 'Student registered successfully!');
     } catch (e) {
       Fluttertoast.showToast(msg: 'Error: $e');
@@ -50,15 +48,13 @@ class RegistrationService {
   }) async {
     try {
       // Check if teacher already exists
-      final existingTeacher = await _firestore
-          .collection('teachers')
-          .doc(employeeId)
-          .get();
-      
+      final existingTeacher =
+          await _firestore.collection('teachers').doc(employeeId).get();
+
       if (existingTeacher.exists) {
         throw 'A teacher with this employee ID already exists';
       }
-      
+
       // Create teacher record
       await _firestore.collection('teachers').doc(employeeId).set({
         'employeeId': employeeId,
@@ -66,7 +62,7 @@ class RegistrationService {
         'department': department,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      
+
       Fluttertoast.showToast(msg: 'Teacher registered successfully!');
     } catch (e) {
       Fluttertoast.showToast(msg: 'Error: $e');
@@ -82,11 +78,9 @@ class RegistrationService {
   }) async {
     try {
       // Verify student exists
-      final studentDoc = await _firestore
-          .collection('students')
-          .doc(childRollNumber)
-          .get();
-      
+      final studentDoc =
+          await _firestore.collection('students').doc(childRollNumber).get();
+
       if (!studentDoc.exists) {
         throw 'No student found with roll number $childRollNumber';
       }
@@ -97,13 +91,13 @@ class RegistrationService {
           .where('children', arrayContains: childRollNumber)
           .limit(1)
           .get();
-      
+
       if (existingParent.docs.isNotEmpty) {
         throw 'A parent is already registered for student $childRollNumber';
       }
 
       final parentId = _uuid.v4();
-      
+
       // Create parent record
       await _firestore.collection('parents').doc(parentId).set({
         'parentId': parentId,
@@ -114,13 +108,10 @@ class RegistrationService {
       });
 
       // Update student with parent reference
-      await _firestore
-          .collection('students')
-          .doc(childRollNumber)
-          .update({
-            'parentId': parentId,
-          });
-      
+      await _firestore.collection('students').doc(childRollNumber).update({
+        'parentId': parentId,
+      });
+
       Fluttertoast.showToast(msg: 'Parent registered successfully!');
     } catch (e) {
       Fluttertoast.showToast(msg: 'Error: $e');

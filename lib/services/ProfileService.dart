@@ -51,7 +51,7 @@ class ProfileService {
           .collection('students')
           .where('parentId', isEqualTo: parentId)
           .get();
-      
+
       if (snapshot.docs.isEmpty) {
         print('No children found for parent: $parentId');
         return [];
