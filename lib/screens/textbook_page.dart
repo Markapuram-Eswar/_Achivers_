@@ -23,11 +23,19 @@ class _TextbookPageState extends State<TextbookPage> {
   bool _isTtsInitialized = false;
   bool _isSpeaking = false;
   int? _currentlySpeakingIndex;
-  double _fontSize = 16.0;
+  // Font size is now handled by _currentFontSize
+  static const double _minFontSize = 12.0;
+  static const double _maxFontSize = 32.0;
   String _selectedVoiceGender = 'female';
   List<Map<String, dynamic>> _voices = [];
+  double _currentFontSize = 16.0;
 
-  final List<Map<String, dynamic>> _content = [
+  String _selectedLanguage = 'English';
+  final List<String> _languages = ['English', 'हिंदी'];
+
+  List<Map<String, dynamic>> get _content => _selectedLanguage == 'English' ? _englishContent : _hindiContent;
+
+  final List<Map<String, dynamic>> _englishContent = [
     {
       'heading': 'Introduction to Biology',
       'paragraph':
@@ -49,40 +57,29 @@ class _TextbookPageState extends State<TextbookPage> {
       'image':
           'https://images.unsplash.com/photo-1585011658890-be4d3ad65f1b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
     },
+  ];
+
+  final List<Map<String, dynamic>> _hindiContent = [
     {
-      'heading': 'Human Anatomy and Physiology',
+      'heading': 'जीव विज्ञान का परिचय',
       'paragraph':
-          'Human anatomy is the scientific study of the structure of organisms and their parts, while physiology focuses on how those structures function. The human body is organized into several major systems: the skeletal system (206 bones providing structure and protection), muscular system (enabling movement), nervous system (brain, spinal cord, and nerves controlling body functions), cardiovascular system (heart and blood vessels circulating blood), respiratory system (lungs and airways for gas exchange), digestive system (processing food and absorbing nutrients), endocrine system (hormone production and regulation), immune system (defense against pathogens), and reproductive system. Each system works in harmony to maintain homeostasis, the body\'s ability to maintain a stable internal environment despite external changes.',
-      'image':
-          'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
-    },
-    {
-      'heading': 'Genetics and Heredity',
-      'paragraph':
-          'Genetics is the study of genes, genetic variation, and heredity in organisms. DNA (deoxyribonucleic acid) is the hereditary material in humans and almost all other organisms, containing the instructions needed for development, survival, and reproduction. The structure of DNA is a double helix, discovered by James Watson and Francis Crick in 1953. Genes are segments of DNA that encode specific proteins or functional RNA molecules. The human genome contains approximately 20,000-25,000 genes. Genetic inheritance follows Mendelian patterns, including dominant and recessive traits, codominance, and incomplete dominance. Modern genetics includes molecular genetics (studying gene structure and function), population genetics (studying genetic variation within populations), and quantitative genetics (studying complex traits influenced by multiple genes and environment).',
+          'जीव विज्ञान जीवन और जीवित जीवों का वैज्ञानिक अध्ययन है, जिसमें उनकी भौतिक संरचना, रासायनिक प्रक्रियाएं, आणविक अंतःक्रियाएं, शारीरिक तंत्र, विकास और विकास शामिल हैं। इसमें सूक्ष्म जीव विज्ञान, वनस्पति विज्ञान, प्राणी विज्ञान और जैव रसायन जैसे कई उप-विषय शामिल हैं। आधुनिक जीव विज्ञान एक विशाल क्षेत्र है जो जीवित जीवों की संरचना, कार्य, विकास, उत्पत्ति, विकास और वितरण का अध्ययन करता है। आधुनिक जीव विज्ञान के मूल सिद्धांतों में कोशिका सिद्धांत, विकास, आनुवंशिकी, होमियोस्टेसिस और ऊर्जा प्रसंस्करण शामिल हैं।',
       'image':
           'https://images.unsplash.com/photo-1581093450024-af2a3d6dba5a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
     },
     {
-      'heading': 'Evolution and Natural Selection',
+      'heading': 'कोशिका संरचना और कार्य',
       'paragraph':
-          'Evolution is the process by which different kinds of living organisms have developed and diversified from earlier forms during the history of Earth. Charles Darwin\'s theory of natural selection explains how evolution occurs: individuals with advantageous traits are more likely to survive and reproduce, passing those traits to future generations. Evidence for evolution comes from multiple sources including the fossil record, comparative anatomy, embryology, biogeography, and molecular biology. Key concepts include genetic variation, mutation, genetic drift, gene flow, and speciation. Evolution explains both the unity (shared characteristics due to common ancestry) and diversity (adaptations to different environments) of life on Earth. Modern evolutionary synthesis combines Darwinian evolution with Mendelian genetics, showing how genetic mutations provide the variation upon which natural selection acts.',
+          'कोशिकाएं सभी जीवित जीवों की मूल संरचनात्मक और कार्यात्मक इकाइयां हैं। मानव शरीर में लगभग 37.2 ट्रिलियन कोशिकाएं होती हैं, जिनमें से प्रत्येक की विशेष भूमिका होती है। कोशिकाओं के दो मुख्य प्रकार हैं: प्रोकैरियोटिक कोशिकाएं (जीवाणु और आर्किया) और यूकेरियोटिक कोशिकाएं (पौधे, जानवर, कवक)। कोशिका के प्रमुख घटकों में नाभिक (डीएनए युक्त), माइटोकॉन्ड्रिया (कोशिका का पावरहाउस), एंडोप्लाज्मिक रेटिकुलम (प्रोटीन और लिपिड संश्लेषण), गोल्जी उपकरण (प्रोटीन संशोधन और परिवहन), लाइसोसोम (पाचन तंत्र), और कोशिका झिल्ली (चयनात्मक बाधा) शामिल हैं।',
       'image':
-          'https://images.unsplash.com/photo-1610337673044-720471f83677?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
+          'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
     },
     {
-      'heading': 'Ecology and Ecosystems',
+      'heading': 'प्रकाश संश्लेषण प्रक्रिया',
       'paragraph':
-          'Ecology is the study of interactions among organisms and between organisms and their physical environment. An ecosystem consists of all the organisms in a particular area along with the nonliving components with which they interact. Key ecological concepts include energy flow (movement of energy through food chains and webs), nutrient cycling (recycling of elements like carbon and nitrogen), and ecological succession (predictable changes in species composition over time). Biomes are large-scale ecological communities characterized by climate and dominant vegetation, such as tropical rainforests, deserts, grasslands, and tundras. Human impacts on ecosystems include habitat destruction, pollution, climate change, and introduction of invasive species. Conservation biology seeks to protect biodiversity and maintain ecosystem services that humans depend on, such as clean air, water, and soil fertility.',
+          'प्रकाश संश्लेषण एक जैव रासायनिक प्रक्रिया है जिसके द्वारा पौधे, शैवाल और कुछ जीवाणु सूर्य के प्रकाश ऊर्जा को ग्लूकोज के रूप में रासायनिक ऊर्जा में परिवर्तित करते हैं। यह प्रक्रिया पौधों के क्लोरोप्लास्ट में होती है, विशेष रूप से थायलाकोइड झिल्ली में जहां क्लोरोफिल वर्णक प्रकाश को अवशोषित करते हैं। समग्र रासायनिक समीकरण है: 6CO₂ + 6H₂O + प्रकाश ऊर्जा → C₆H₁₂O₆ + 6O₂। प्रकाश संश्लेषण में दो मुख्य चरण होते हैं: प्रकाश-निर्भर अभिक्रियाएं (जो एटीपी और एनएडीपीएच उत्पन्न करती हैं) और केल्विन चक्र (जो ग्लूकोज उत्पन्न करता है)। यह प्रक्रिया पृथ्वी पर जीवन के लिए महत्वपूर्ण है क्योंकि यह ऑक्सीजन उत्पन्न करती है और खाद्य श्रृंखला का आधार बनाती है।',
       'image':
           'https://images.unsplash.com/photo-1476231682828-37e95bcad36e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
-    },
-    {
-      'heading': 'Microbiology and Immunology',
-      'paragraph':
-          'Microbiology is the study of microscopic organisms, including bacteria, viruses, archaea, fungi, and protists. These microorganisms play crucial roles in nutrient cycling, biodegradation, climate change, food spoilage, and human health. The human body hosts trillions of microorganisms, collectively known as the microbiome, which are essential for digestion, vitamin production, and protection against pathogens. Immunology is the study of the immune system, which defends the body against infectious organisms and other invaders. The immune system consists of innate (nonspecific) and adaptive (specific) components. Vaccination works by stimulating the immune system to recognize and combat pathogens. Understanding microbiology and immunology is crucial for developing antibiotics, vaccines, and treatments for infectious diseases, as well as for maintaining public health through sanitation and food safety measures.',
-      'image':
-          'https://images.unsplash.com/photo-1575505586569-646b2ca898fc?ixlib=rb-1.2.1&auto=format&fit=crop&w=1080&q=80',
     },
   ];
 
@@ -94,6 +91,9 @@ class _TextbookPageState extends State<TextbookPage> {
 
   Future<void> _initTts() async {
     try {
+      // Set default language based on selection
+      await _flutterTts.setLanguage(_selectedLanguage == 'English' ? 'en-US' : 'hi-IN');
+      
       // Get available voices
       var voices = await _flutterTts.getVoices;
       
@@ -112,7 +112,6 @@ class _TextbookPageState extends State<TextbookPage> {
       }
 
       // Set TTS parameters
-      await _flutterTts.setLanguage('en-US');
       await _flutterTts.setPitch(1.0);
       await _flutterTts.setSpeechRate(0.5);
 
@@ -207,6 +206,9 @@ class _TextbookPageState extends State<TextbookPage> {
         }
       }
 
+      // Set language before speaking
+      await _flutterTts.setLanguage(_selectedLanguage == 'English' ? 'en-US' : 'hi-IN');
+      
       if (!_isTtsInitialized) {
         await _initTts();
       }
@@ -288,12 +290,21 @@ class _TextbookPageState extends State<TextbookPage> {
     }
   }
 
+  void _changeLanguage(String? newValue) {
+    if (newValue != null && newValue != _selectedLanguage) {
+      setState(() {
+        _selectedLanguage = newValue;
+        _stopSpeaking(); // Stop any ongoing speech when language changes
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Biology Textbook',
+          _selectedLanguage == 'English' ? 'Biology Textbook' : 'जीव विज्ञान पाठ्यपुस्तक',
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -302,6 +313,71 @@ class _TextbookPageState extends State<TextbookPage> {
         backgroundColor: Colors.green[700],
         elevation: 0,
         actions: [
+          // Language selector dropdown
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0, top: 8.0, bottom: 8.0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedLanguage,
+                  icon: const Icon(Icons.language, color: Colors.white),
+                  dropdownColor: Theme.of(context).primaryColor,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16.0,
+                    fontFamily: GoogleFonts.poppins().fontFamily,
+                  ),
+                  onChanged: _changeLanguage,
+                  items: _languages.map<DropdownMenuItem<String>>((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(
+                        value,
+                        style: TextStyle(
+                          fontFamily: value == 'हिंदी' ? 'Noto Sans Devanagari' : null,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+          // Font size controls
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.text_decrease, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    if (_currentFontSize > _minFontSize) {
+                      _currentFontSize -= 2.0;
+                    }
+                  });
+                },
+              ),
+              Text(
+                '${_currentFontSize.toInt()}px',
+                style: const TextStyle(color: Colors.white),
+              ),
+              IconButton(
+                icon: const Icon(Icons.text_increase, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    if (_currentFontSize < _maxFontSize) {
+                      _currentFontSize += 2.0;
+                    }
+                  });
+                },
+              ),
+            ],
+          ),
+          
           // Voice selection
           PopupMenuButton<String>(
             icon: const Icon(Icons.record_voice_over),
@@ -349,22 +425,7 @@ class _TextbookPageState extends State<TextbookPage> {
               ),
             ],
           ),
-          IconButton(
-            icon: const Icon(Icons.text_decrease),
-            onPressed: () {
-              setState(() {
-                _fontSize = (_fontSize - 1).clamp(12.0, 24.0);
-              });
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.text_increase),
-            onPressed: () {
-              setState(() {
-                _fontSize = (_fontSize + 1).clamp(12.0, 24.0);
-              });
-            },
-          ),
+          // Font size controls moved to the right side of the app bar
         ],
       ),
       body: Container(
@@ -445,9 +506,9 @@ class _TextbookPageState extends State<TextbookPage> {
                                 child: Text(
                                   section['heading'],
                                   style: GoogleFonts.poppins(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                    fontSize: _currentFontSize,
+                                    color: Colors.grey[800],
+                                    height: 1.6,
                                   ),
                                 ),
                               ),
@@ -538,7 +599,7 @@ class _TextbookPageState extends State<TextbookPage> {
                           data: section['paragraph'],
                           styleSheet: MarkdownStyleSheet(
                             p: GoogleFonts.poppins(
-                              fontSize: _fontSize,
+                              fontSize: _currentFontSize,
                               height: 1.6,
                               color: Colors.black87,
                             ),
