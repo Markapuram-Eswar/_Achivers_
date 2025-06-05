@@ -4,7 +4,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 class TeacherProfileService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Fetch Teacher Profile
+  // Fetch Teacher Profile - merged and improved version
   Future<Map<String, dynamic>?> getTeacherProfile(String employeeId) async {
     try {
       final doc = await _firestore.collection('teachers').doc(employeeId).get();
@@ -75,4 +75,6 @@ class TeacherProfileService {
       rethrow;
     }
   }
+
+  // Optional: Add any additional profile-related methods here
 }

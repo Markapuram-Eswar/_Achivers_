@@ -239,21 +239,8 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
             );
           },
         ),
-        
-        // Third Row - Schedule Event
-        _buildActionCard(
-          'Schedule Event',
-          Icons.event_available,
-          Colors.purple[400]!,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const SendMessageScreen(),
-              ),
-            );
-          },
-        ),
+
+        // Third Row - Schedule Even
 
         // Third Row
         _buildActionCard(
