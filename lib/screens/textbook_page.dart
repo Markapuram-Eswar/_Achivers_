@@ -4,15 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
-void main() {
-  runApp(const MaterialApp(
-    home: TextbookPage(
-      subjectId: 'your_subject_id_here',
-      topicId: 'your_topic_id_here',
-    ),
-  ));
-}
-
 class TextbookPage extends StatefulWidget {
   final String subjectId;
   final String topicId;
@@ -33,9 +24,8 @@ class _TextbookPageState extends State<TextbookPage> {
   bool _isSpeaking = false;
   int? _currentlySpeakingIndex;
   double _fontSize = 16.0;
-  String _selectedVoice = 'female'; // 'male' or 'female'
-  List<dynamic> _availableVoices = [];
-  Map<String, String>? _selectedVoiceParams;
+  String _selectedVoiceGender = 'female';
+  List<Map<String, dynamic>> _voices = [];
 
   final List<Map<String, dynamic>> _content = [
     {
@@ -104,29 +94,32 @@ class _TextbookPageState extends State<TextbookPage> {
 
   Future<void> _initTts() async {
     try {
+      // Get available voices
+      var voices = await _flutterTts.getVoices;
+      
+      // Safely convert voices to the correct type
+      if (voices != null) {
+        _voices = [];
+        for (var voice in voices) {
+          if (voice is Map) {
+            try {
+              _voices.add(Map<String, dynamic>.from(voice));
+            } catch (e) {
+              debugPrint('Error converting voice: $e');
+            }
+          }
+        }
+      }
+
+      // Set TTS parameters
       await _flutterTts.setLanguage('en-US');
-      _availableVoices = await _flutterTts.getVoices;
+      await _flutterTts.setPitch(1.0);
+      await _flutterTts.setSpeechRate(0.5);
 
-      // Get available voices and print them for debugging
-      print('Available voices: $_availableVoices');
-
-      // Try to select a male or female voice robustly
-      _selectedVoiceParams = _pickVoice(_selectedVoice);
-      if (_selectedVoiceParams != null) {
-        await _flutterTts.setVoice(_selectedVoiceParams!);
+      // Set initial voice based on gender if voices are available
+      if (_voices.isNotEmpty) {
+        await _setVoiceGender(_selectedVoiceGender);
       }
-
-      // Set more natural speech rates
-      if (_selectedVoice == 'male') {
-        await _flutterTts.setPitch(0.9); // Slightly lower pitch for male
-        await _flutterTts.setSpeechRate(0.5); // More natural speed
-      } else {
-        await _flutterTts.setPitch(1.1); // Slightly higher pitch for female
-        await _flutterTts.setSpeechRate(0.5); // More natural speed
-      }
-
-      // Set volume to maximum
-      await _flutterTts.setVolume(1.0);
 
       _flutterTts.setCompletionHandler(() {
         if (mounted) {
@@ -143,12 +136,9 @@ class _TextbookPageState extends State<TextbookPage> {
             _isSpeaking = false;
             _currentlySpeakingIndex = null;
           });
-          // Only show error if it's not a user-initiated stop
-          if (!msg.contains('interrupted')) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('TTS Error: $msg')),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('TTS Error: $msg')),
+          );
         }
       });
 
@@ -164,44 +154,44 @@ class _TextbookPageState extends State<TextbookPage> {
     }
   }
 
-  Map<String, String>? _pickVoice(String gender) {
-    if (_availableVoices.isEmpty) return null;
+  Future<void> _setVoiceGender(String gender) async {
+    try {
+      if (_voices.isEmpty) {
+        debugPrint('No voices available');
+        return;
+      }
 
-    // Print available voices for debugging
-    print('Picking voice for gender: $gender');
-    print('Available voices: $_availableVoices');
+      // Find a voice that matches the gender
+      var voice = _voices.firstWhere(
+        (v) => v['name']?.toString().toLowerCase().contains(gender.toLowerCase()) ?? false,
+        orElse: () => _voices.first,
+      );
 
-    // First try to find a voice with explicit gender property
-    final genderMatch = _availableVoices.firstWhere(
-      (v) => v['gender']?.toLowerCase() == gender,
-      orElse: () => null,
-    );
-    if (genderMatch != null) {
-      print('Found voice by gender: $genderMatch');
-      return Map<String, String>.from(genderMatch);
+      // Create a new map with required String values
+      final Map<String, String> voiceMap = {
+        'name': voice['name']?.toString() ?? 'default',
+        'locale': voice['locale']?.toString() ?? 'en-US',
+        // Add other required fields with defaults if needed
+      };
+
+      await _flutterTts.setVoice(voiceMap);
+      
+      if (mounted) {
+        setState(() {
+          _selectedVoiceGender = gender;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error in _setVoiceGender: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error setting voice. Using default voice settings.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
-
-    // Then try to find by name containing gender
-    final nameMatch = _availableVoices.firstWhere(
-      (v) => v['name']?.toLowerCase().contains(gender),
-      orElse: () => null,
-    );
-    if (nameMatch != null) {
-      print('Found voice by name: $nameMatch');
-      return Map<String, String>.from(nameMatch);
-    }
-
-    // If no gender match, try to find a voice that's not explicitly the opposite gender
-    final oppositeGender = gender == 'male' ? 'female' : 'male';
-    final nonOppositeVoice = _availableVoices.firstWhere(
-      (v) =>
-          !(v['name']?.toLowerCase().contains(oppositeGender) ?? false) &&
-          !(v['gender']?.toLowerCase() == oppositeGender),
-      orElse: () => _availableVoices.first,
-    );
-
-    print('Using fallback voice: $nonOppositeVoice');
-    return Map<String, String>.from(nonOppositeVoice);
   }
 
   Future<void> _speak(String text, int index) async {
@@ -213,11 +203,12 @@ class _TextbookPageState extends State<TextbookPage> {
             _isSpeaking = false;
             _currentlySpeakingIndex = null;
           });
+          if (_currentlySpeakingIndex == index) return;
         }
-        // If clicking the same item that's currently speaking, just stop it
-        if (_currentlySpeakingIndex == index) {
-          return;
-        }
+      }
+
+      if (!_isTtsInitialized) {
+        await _initTts();
       }
 
       if (mounted) {
@@ -225,16 +216,6 @@ class _TextbookPageState extends State<TextbookPage> {
           _currentlySpeakingIndex = index;
           _isSpeaking = true;
         });
-      }
-
-      if (!_isTtsInitialized) {
-        await _initTts();
-      }
-
-      // Ensure we're using the correct voice before speaking
-      _selectedVoiceParams = _pickVoice(_selectedVoice);
-      if (_selectedVoiceParams != null) {
-        await _flutterTts.setVoice(_selectedVoiceParams!);
       }
 
       await _flutterTts.speak(text);
@@ -254,10 +235,57 @@ class _TextbookPageState extends State<TextbookPage> {
     }
   }
 
+  Future<void> _stopSpeaking() async {
+    try {
+      // First cancel any ongoing speech
+      await _flutterTts.stop();
+      
+      // Reset the speaking state
+      if (mounted) {
+        setState(() {
+          _isSpeaking = false;
+          _currentlySpeakingIndex = null;
+        });
+      }
+      
+      // Add a small delay to ensure the state is properly updated
+      await Future.delayed(const Duration(milliseconds: 100));
+    } catch (e) {
+      debugPrint('Error in _stopSpeaking: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error stopping speech'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
-    _flutterTts.stop();
-    super.dispose();
+    try {
+      // Stop any ongoing speech
+      _flutterTts.stop();
+      
+      // Clear all handlers with empty callbacks
+      _flutterTts.setCompletionHandler(() {});
+      _flutterTts.setErrorHandler((_) {});
+      _flutterTts.setCancelHandler(() {});
+      
+      // Reset state
+      if (mounted) {
+        setState(() {
+          _isSpeaking = false;
+          _currentlySpeakingIndex = null;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error in dispose: $e');
+    } finally {
+      super.dispose();
+    }
   }
 
   @override
@@ -274,46 +302,52 @@ class _TextbookPageState extends State<TextbookPage> {
         backgroundColor: Colors.green[700],
         elevation: 0,
         actions: [
-          // Voice selection dropdown
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: DropdownButton<String>(
-              value: _selectedVoice,
-              icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-              dropdownColor: Colors.green[700],
-              style: GoogleFonts.poppins(color: Colors.white),
-              underline: Container(height: 0),
-              items: [
-                DropdownMenuItem(
-                  value: 'female',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.female, color: Colors.pink),
-                      const SizedBox(width: 8),
-                      Text('Female Voice', style: GoogleFonts.poppins()),
-                    ],
-                  ),
+          // Voice selection
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.record_voice_over),
+            onSelected: _setVoiceGender,
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'female',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.female,
+                      color: _selectedVoiceGender == 'female'
+                          ? Colors.green
+                          : Colors.grey,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Female Voice',
+                      style: GoogleFonts.poppins(),
+                    ),
+                    if (_selectedVoiceGender == 'female')
+                      const Icon(Icons.check, color: Colors.green),
+                  ],
                 ),
-                DropdownMenuItem(
-                  value: 'male',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.male, color: Colors.blue),
-                      const SizedBox(width: 8),
-                      Text('Male Voice', style: GoogleFonts.poppins()),
-                    ],
-                  ),
+              ),
+              PopupMenuItem(
+                value: 'male',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.male,
+                      color: _selectedVoiceGender == 'male'
+                          ? Colors.green
+                          : Colors.grey,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Male Voice',
+                      style: GoogleFonts.poppins(),
+                    ),
+                    if (_selectedVoiceGender == 'male')
+                      const Icon(Icons.check, color: Colors.green),
+                  ],
                 ),
-              ],
-              onChanged: (String? newValue) async {
-                if (newValue != null && newValue != _selectedVoice) {
-                  setState(() {
-                    _selectedVoice = newValue;
-                  });
-                  await _initTts(); // Reinitialize TTS with new voice settings
-                }
-              },
-            ),
+              ),
+            ],
           ),
           IconButton(
             icon: const Icon(Icons.text_decrease),
@@ -462,8 +496,9 @@ class _TextbookPageState extends State<TextbookPage> {
                                 color: Colors.transparent,
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(30),
-                                  onTap: () =>
-                                      _speak(section['paragraph'], index),
+                                  onTap: isSpeaking
+                                      ? _stopSpeaking
+                                      : () => _speak(section['paragraph'], index),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 16,
