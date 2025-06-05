@@ -31,7 +31,7 @@ class TextbookPage extends StatefulWidget {
 
 class _TextbookPageState extends State<TextbookPage> {
   final TextBookService _textBookService = TextBookService();
-  late Future<Map<String, dynamic>> _textbookData;
+  Future<Map<String, dynamic>> _textbookData = Future.value({});
   Map<String, dynamic>? studentData;
   final FlutterTts _flutterTts = FlutterTts();
   List<dynamic> _voices = [];
@@ -206,7 +206,12 @@ class _TextbookPageState extends State<TextbookPage> {
               body: Center(child: Text('Error: ${snapshot.error}')));
         } else {
           final data = snapshot.data;
-          if (data == null || data['subjectData'] == null || data['topicData'] == null) {
+          if (data == null || data.isEmpty) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (data['subjectData'] == null || data['topicData'] == null) {
             return const Scaffold(
               body: Center(child: Text('No textbook data found.')),
             );
