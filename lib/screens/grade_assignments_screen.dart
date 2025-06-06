@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../services/AssessmentService.dart';
 
 class EnterMarksScreen extends StatefulWidget {
   const EnterMarksScreen({super.key});
@@ -11,50 +12,68 @@ class EnterMarksScreen extends StatefulWidget {
 
 class _EnterMarksScreenState extends State<EnterMarksScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _assessmentService = AssessmentService();
 
   String? _selectedClass;
   String? _selectedSection;
   String? _selectedExam;
   String? _selectedSubject;
 
-  final List<String> _classes = ['Class 1', 'Class 2', 'Class 3'];
+  final List<String> _classes = [
+    'Class 1',
+    'Class 2',
+    'Class 3',
+    'Class 4'
+        'Class 5',
+    'Class 6',
+    'Class 7',
+    'Class 8',
+    'Class 9',
+    'Class 10',
+  ];
   final List<String> _sections = ['A', 'B', 'C'];
   final List<String> _exams = ['FA1', 'Mid-Term', 'FA2', 'Final'];
   final List<String> _subjects = ['Maths', 'Science', 'English'];
 
-  // Student list with text controllers for marks and grade calculation
-  final List<Map<String, dynamic>> _students = [
-    {
-      'name': 'Arjun Sharma',
-      'rollNo': '001',
-      'controller': TextEditingController(),
-      'grade': '-'
-    },
-    {
-      'name': 'Priya Patel',
-      'rollNo': '002',
-      'controller': TextEditingController(),
-      'grade': '-'
-    },
-    {
-      'name': 'Rahul Kumar',
-      'rollNo': '003',
-      'controller': TextEditingController(),
-      'grade': '-'
-    },
-    {
-      'name': 'Ananya Singh',
-      'rollNo': '004',
-      'controller': TextEditingController(),
-      'grade': '-'
-    },
-    {
-      'name': 'Aditya Verma',
-      'rollNo': '005',
-      'controller': TextEditingController(),
-      'grade': '-'
-    },
-  ];
+  List<Map<String, dynamic>> _students = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStudents();
+  }
+
+  Future<void> _loadStudents() async {
+    if (_selectedClass == null || _selectedSection == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final students = await _assessmentService.getStudentsByClassAndSection(
+        _selectedClass!,
+        _selectedSection!,
+      );
+
+      setState(() {
+        _students = students
+            .map((student) => {
+                  ...student,
+                  'controller': TextEditingController(),
+                  'grade': '-',
+                })
+            .toList();
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading students: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   String _calculateGrade(int marks) {
     if (marks >= 90) return 'A+';
@@ -65,33 +84,57 @@ class _EnterMarksScreenState extends State<EnterMarksScreen> {
     return 'F';
   }
 
-  void _submitMarks() {
+  Future<void> _submitMarks() async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
+      setState(() => _isLoading = true);
+      try {
         for (var student in _students) {
-          int marks = int.parse(student['controller'].text);
-          student['grade'] = _calculateGrade(marks);
-        }
-      });
+          final marks = int.parse(student['controller'].text);
+          final grade = _calculateGrade(marks);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 8),
-              Text(
-                'Marks submitted successfully!',
-                style: GoogleFonts.poppins(),
-              ),
-            ],
+          await _assessmentService.saveAssessmentDetails(
+            studentId: student['id'],
+            examType: _selectedExam!,
+            subject: _selectedSubject!,
+            marks: marks,
+            grade: grade,
+            className: _selectedClass!,
+            section: _selectedSection!,
+          );
+
+          setState(() {
+            student['grade'] = grade;
+          });
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Text(
+                  'Marks submitted successfully!',
+                  style: GoogleFonts.poppins(),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error submitting marks: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -133,7 +176,12 @@ class _EnterMarksScreenState extends State<EnterMarksScreen> {
                         child: Text(item, style: GoogleFonts.poppins()),
                       ))
                   .toList(),
-              onChanged: onChanged,
+              onChanged: (value) {
+                onChanged(value);
+                if (label == 'Class' || label == 'Section') {
+                  _loadStudents();
+                }
+              },
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -231,145 +279,171 @@ class _EnterMarksScreenState extends State<EnterMarksScreen> {
                     ),
                   ).animate().fadeIn().slideY(),
                   const SizedBox(height: 20),
-                  Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Student Marks',
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_students.isEmpty)
+                    Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Center(
+                          child: Text(
+                            'Select Class and Section to view students',
                             style: GoogleFonts.poppins(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.indigo[900],
+                              color: Colors.grey[600],
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          ..._students.map(
-                            (student) => Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    flex: 3,
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          student['name'],
-                                          style: GoogleFonts.poppins(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Roll No: ${student['rollNo']}',
-                                          style: GoogleFonts.poppins(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    flex: 2,
-                                    child: TextFormField(
-                                      controller: student['controller'],
-                                      keyboardType: TextInputType.number,
-                                      style: GoogleFonts.poppins(),
-                                      decoration: InputDecoration(
-                                        labelText: 'Marks',
-                                        border: OutlineInputBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
-                                        ),
-                                      ),
-                                      validator: (value) {
-                                        if (value == null || value.isEmpty)
-                                          return 'Required';
-                                        final number = int.tryParse(value);
-                                        if (number == null ||
-                                            number < 0 ||
-                                            number > 100) return 'Invalid';
-                                        return null;
-                                      },
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: student['grade'] == '-'
-                                          ? Colors.grey[200]
-                                          : student['grade'] == 'F'
-                                              ? Colors.red[100]
-                                              : Colors.green[100],
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        student['grade'],
-                                        style: GoogleFonts.poppins(
-                                          fontWeight: FontWeight.bold,
-                                          color: student['grade'] == '-'
-                                              ? Colors.grey[600]
-                                              : student['grade'] == 'F'
-                                                  ? Colors.red[900]
-                                                  : Colors.green[900],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                        ),
+                      ),
+                    )
+                  else
+                    Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Student Marks',
+                              style: GoogleFonts.poppins(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.indigo[900],
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 16),
+                            ..._students.map(
+                              (student) => Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 3,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            student['name'],
+                                            style: GoogleFonts.poppins(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          Text(
+                                            'Roll No: ${student['rollNo']}',
+                                            style: GoogleFonts.poppins(
+                                              color: Colors.grey[600],
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      flex: 2,
+                                      child: TextFormField(
+                                        controller: student['controller'],
+                                        keyboardType: TextInputType.number,
+                                        style: GoogleFonts.poppins(),
+                                        decoration: InputDecoration(
+                                          labelText: 'Marks',
+                                          border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 8,
+                                          ),
+                                        ),
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty)
+                                            return 'Required';
+                                          final number = int.tryParse(value);
+                                          if (number == null ||
+                                              number < 0 ||
+                                              number > 100) return 'Invalid';
+                                          return null;
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: student['grade'] == '-'
+                                            ? Colors.grey[200]
+                                            : student['grade'] == 'F'
+                                                ? Colors.red[100]
+                                                : Colors.green[100],
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          student['grade'],
+                                          style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.bold,
+                                            color: student['grade'] == '-'
+                                                ? Colors.grey[600]
+                                                : student['grade'] == 'F'
+                                                    ? Colors.red[900]
+                                                    : Colors.green[900],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  )
-                      .animate()
-                      .fadeIn()
-                      .slideY(delay: const Duration(milliseconds: 200)),
+                    )
+                        .animate()
+                        .fadeIn()
+                        .slideY(delay: const Duration(milliseconds: 200)),
                   const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _submitMarks,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[600],
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  if (_students.isNotEmpty)
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _submitMarks,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[600],
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
                         ),
-                        elevation: 2,
+                        child: _isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
+                            : Text(
+                                'Submit Grades',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
-                      child: Text(
-                        'Submit Grades',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  )
-                      .animate()
-                      .fadeIn()
-                      .slideY(delay: const Duration(milliseconds: 400)),
+                    )
+                        .animate()
+                        .fadeIn()
+                        .slideY(delay: const Duration(milliseconds: 400)),
                 ],
               ),
             ),

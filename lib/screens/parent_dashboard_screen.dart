@@ -1,11 +1,18 @@
+import 'leave_application_screen.dart';
+import 'contact_teacher_screen.dart';
+import 'parent_profile_page.dart';
+import 'fee_payments_screen.dart';
+import 'parent_progress_page.dart';
+import '../services/parent_service.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:achiver_app/screens/reports_zone_page.dart';
 import 'package:flutter/material.dart';
 import 'leave_application_screen.dart';
 import 'contact_teacher_screen.dart';
 import 'parent_profile_page.dart';
-import 'progress_page.dart';
 import 'fee_payments_screen.dart';
+import 'parent_progress_page.dart' as parent_progress;
 import '../services/parent_service.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 
 
 class ParentDashboardScreen extends StatefulWidget {
@@ -19,10 +26,15 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   final ParentService _parentService = ParentService();
   Map<String, dynamic>? _parentData;
   bool _isLoading = true;
+  bool _isLoadingChildren = true;
+  String? _childrenError;
+  List<Map<String, dynamic>> _children = [];
+
   @override
   void initState() {
     super.initState();
     _loadParentData();
+    _fetchChildren();
     
     /* Backend TODO: Fetch parent dashboard data from backend (API call, database read) */
   }
@@ -49,6 +61,34 @@ Future<void> _loadParentData() async {
           ),
         );
       }
+    }
+  }
+  Future<void> _fetchChildren() async {
+    setState(() {
+      _isLoadingChildren = true;
+      _childrenError = null;
+    });
+    try {
+      print('Fetching parent profile...');
+      final parentProfile = await ParentService()
+          .getParentProfile()
+          .timeout(const Duration(seconds: 10), onTimeout: () {
+        throw 'Loading children timed out. Please check your connection.';
+      });
+      print('Parent profile fetched: ' + parentProfile.toString());
+      final children =
+          List<Map<String, dynamic>>.from(parentProfile['children'] ?? []);
+      print('Children loaded: ${children.length}');
+      setState(() {
+        _children = children;
+        _isLoadingChildren = false;
+      });
+    } catch (e) {
+      print('Error loading children: $e');
+      setState(() {
+        _childrenError = 'Failed to load children: $e';
+        _isLoadingChildren = false;
+      });
     }
   }
 
@@ -221,16 +261,54 @@ Future<void> _loadParentData() async {
               ),
             ),
             _buildActionButton(
-              'Progress',
-              Icons.assessment_rounded,
-              Colors.purple[400]!,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ProgressPage(),
-                ),
+                'Progress',
+                Icons.assessment_rounded,
+                Colors.purple[400]!,
+                onTap: () async {
+                  if (_children.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('No children found for this parent.')),
+                    );
+                    return;
+                  }
+                  if (_children.length == 1) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            parent_progress.ProgressPage(child: _children[0]),
+                      ),
+                    );
+                  } else {
+                    final selected = await showDialog<Map<String, dynamic>>(
+                      context: context,
+                      builder: (context) {
+                        return SimpleDialog(
+                          title: const Text('Select Child'),
+                          children: _children.map((child) {
+                            final name =
+                                child['name'] ?? child['fullName'] ?? 'Unknown';
+                            return SimpleDialogOption(
+                              onPressed: () => Navigator.pop(context, child),
+                              child: Text(name),
+                            );
+                          }).toList(),
+                        );
+                      },
+                    );
+                    if (selected != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              parent_progress.ProgressPage(child: selected),
+                        ),
+                      );
+                    }
+                  }
+                },
               ),
-            ),
             _buildActionButton(
               'Fee\nPayments',
               Icons.payment_rounded,
