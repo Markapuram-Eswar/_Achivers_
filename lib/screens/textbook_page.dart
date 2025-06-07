@@ -1,20 +1,11 @@
-import 'package:achiver_app/services/textbook_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import '../services/text_book_service.dart';
 import '../services/ProfileService.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-
-void main() {
-  runApp(MaterialApp(
-    home: TextbookPage(
-      subjectData: {'title': 'Math', 'color': Colors.blue[700]},
-      topicData: {'name': 'Algebra', 'icon': 'math'},
-    ),
-  ));
-}
 
 class TextbookPage extends StatefulWidget {
   final Map<String, dynamic> subjectData;

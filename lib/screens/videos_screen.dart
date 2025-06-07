@@ -3,22 +3,36 @@ import 'package:video_player/video_player.dart';
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../services/mcq_scorePost_service.dart';
+import '../services/auth_service.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:open_filex/open_filex.dart';
 
 void main() => runApp(VideoSequenceApp());
 
 class VideoSequenceApp extends StatelessWidget {
+  const VideoSequenceApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Video Flow App',
       theme: ThemeData.dark(),
-      home: VideoFlowScreen(),
+      home: VideoFlowScreen(subjectData: {}, topicData: {}),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class VideoFlowScreen extends StatefulWidget {
+  final Map<String, dynamic> subjectData;
+  final Map<String, dynamic> topicData;
+  const VideoFlowScreen(
+      {super.key, required this.subjectData, required this.topicData});
+
   @override
   _VideoFlowScreenState createState() => _VideoFlowScreenState();
 }
@@ -29,43 +43,32 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
   int correctFlagIndex = 0;
   int correctSelections = 0;
   int wrongOrTimeoutCount = 0;
-  final int maxCorrectSelections = 3;
+  int maxCorrectSelections = 3;
   final int maxWrongOrTimeouts = 3;
   Timer? _buttonTimer;
   Timer? _countdownTimer;
   bool _terminated = false;
-  int grade = 9;
+  int grade = 3;
   int sec = 10;
 
   // Quiz related variables
-  int _currentQuestionIndex = 0;
   late List<Map<String, dynamic>> _shuffledQuestions;
   late List<List<String>> _shuffledOptions = [];
   late List<int> _correctAnswerIndices = [];
 
   // List of questions with their options and correct answer index
-  final List<Map<String, dynamic>> _quizQuestions = [
-    {
-      'question': 'What is the capital of France?',
-      'options': ['Paris', 'London', 'Berlin', 'Madrid'],
-      'correctIndex': 0,
-    },
-    {
-      'question': 'Which planet is known as the Red Planet?',
-      'options': ['Venus', 'Mars', 'Jupiter', 'Saturn'],
-      'correctIndex': 1,
-    },
-    {
-      'question': 'What is the largest mammal in the world?',
-      'options': ['African Elephant', 'Blue Whale', 'Giraffe', 'Polar Bear'],
-      'correctIndex': 1,
-    },
-    {
-      'question': 'Which element has the chemical symbol "O"?',
-      'options': ['Gold', 'Oxygen', 'Osmium', 'Oganesson'],
-      'correctIndex': 1,
-    },
-  ];
+  late List<Map<String, dynamic>> _quizQuestions;
+
+  int _currentQuestionIndex = 0;
+
+  Map<String, dynamic> get subjectData => widget.subjectData;
+  Map<String, dynamic> get topicData => widget.topicData;
+
+  final QuizService _quizService = QuizService();
+  bool _isSavingResult = false;
+  DateTime? _quizStartTime;
+  List<int?> _selectedAnswers = [];
+  int _score = 0;
 
   void _initializeQuiz() {
     _shuffledQuestions = List.from(_quizQuestions);
@@ -76,13 +79,13 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
 
     for (var question in _shuffledQuestions) {
       final options = List<String>.from(question['options'] as List);
-      final correctAnswer = options[question['correctIndex'] as int];
+      final correctAnswer = question['correctAnswer'] as int? ?? 0;
+      final originalOptions = List<String>.from(question['options'] as List);
+      final correctOption = originalOptions[correctAnswer];
 
-      // Shuffle options
       options.shuffle();
 
-      // Find the new index of the correct answer
-      final correctIndex = options.indexOf(correctAnswer);
+      final correctIndex = options.indexOf(correctOption);
 
       _shuffledOptions.add(options);
       _correctAnswerIndices.add(correctIndex);
@@ -92,6 +95,23 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
   @override
   void initState() {
     super.initState();
+    print("subjectData from videos_screen: ${subjectData}");
+    print("topicData from videos_screen: ${topicData}");
+    final mcqRaw = widget.topicData['data']?['mcq'];
+    if (mcqRaw is List) {
+      _quizQuestions = mcqRaw
+          .where((e) => e is Map)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      maxCorrectSelections = _quizQuestions.length;
+    } else {
+      _quizQuestions = [];
+      maxCorrectSelections = 0;
+    }
+
+    _quizStartTime = DateTime.now();
+    _selectedAnswers = List.filled(_quizQuestions.length, null);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startVideoSequence();
     });
@@ -99,11 +119,11 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
 
   void _startVideoSequence() {
     if (grade <= 3) {
-      _playVideo('assets/videos/intro1.mp4', onEnd: () {
+      _playVideo('assets/videos/Intro1.mp4', onEnd: () {
         _playVideo('assets/videos/12.mp4', onEnd: _showButtonPage);
       });
     } else if (grade > 3 && grade < 7) {
-      _playVideo('assets/videos/intro2.mp4', onEnd: () {
+      _playVideo('assets/videos/Intro2.mp4', onEnd: () {
         _playVideo('assets/videos/22.mp4', onEnd: _showButtonPage);
       });
     } else {
@@ -141,10 +161,22 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
       _initializeQuiz();
     }
 
-    // If we've shown all questions, reset
+    // If we've shown all questions and have correct answers
     if (_currentQuestionIndex >= _shuffledQuestions.length) {
-      _currentQuestionIndex = 0;
-      _initializeQuiz();
+      if (correctSelections >= maxCorrectSelections &&
+          wrongOrTimeoutCount < maxWrongOrTimeouts) {
+        _terminated = true;
+        String successVideo = grade <= 3
+            ? 'assets/videos/19.mp4'
+            : grade < 7
+                ? 'assets/videos/29.mp4'
+                : 'assets/videos/39.mp4';
+        _playVideo(successVideo, onEnd: _showGameOverDialog);
+        return;
+      } else {
+        _currentQuestionIndex = 0;
+        _initializeQuiz();
+      }
     }
 
     int sec = 15; // Increased time for reading questions
@@ -153,7 +185,7 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (sec > 0) {
         setState(() {
-          sec--;
+          this.sec = sec--;
         });
       } else {
         timer.cancel();
@@ -184,7 +216,7 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
           backgroundColor: Colors.grey[850],
           title: Text(
             'Question ${_currentQuestionIndex + 1} of ${_shuffledQuestions.length}',
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 18,
@@ -195,7 +227,7 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
               child: Container(
-                width: 450, // Slightly wider for better readability
+                width: 450,
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(20),
@@ -209,14 +241,14 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
                   children: [
                     Text(
                       currentQuestion['question'] as String,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         height: 1.3,
                       ),
                     ),
-                    SizedBox(height: 24),
+                    const SizedBox(height: 24),
                     ...List.generate(currentOptions.length, (index) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
@@ -249,8 +281,7 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
                               if (mounted) {
                                 Navigator.of(context).pop();
                                 _currentQuestionIndex++;
-                                _handleButtonSelection(
-                                    index == correctIndex ? 0 : 1);
+                                _handleButtonSelection(index, correctIndex);
                               }
                             },
                             child: Text(
@@ -271,7 +302,7 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
     );
   }
 
-  void _handleButtonSelection(int index) {
+  void _handleButtonSelection(int selectedIndex, int correctIndex) {
     if (_terminated) return;
 
     String videoPath;
@@ -280,26 +311,27 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
     String failureVideo;
 
     if (grade <= 3) {
-      videoPath = 'assets/videos/1${index + 3}.mp4';
+      videoPath = 'assets/videos/1${selectedIndex + 3}.mp4'; // 13, 14, 15, 16
       loopVideo = 'assets/videos/12.mp4';
       successVideo = 'assets/videos/19.mp4';
       failureVideo = 'assets/videos/18.mp4';
     } else if (grade > 3 && grade < 7) {
-      videoPath = 'assets/videos/3,4,5,6.mp4';
+      videoPath = 'assets/videos/3,4,5,6.mp4'; // Same for all options
       loopVideo = 'assets/videos/22.mp4';
       successVideo = 'assets/videos/29.mp4';
       failureVideo = 'assets/videos/28.mp4';
     } else {
-      videoPath = 'assets/videos/3${index + 3}.mp4';
+      videoPath = 'assets/videos/3${selectedIndex + 3}.mp4'; // 33, 34, 35, 36
       loopVideo = 'assets/videos/32.mp4';
       successVideo = 'assets/videos/39.mp4';
       failureVideo = 'assets/videos/38.mp4';
     }
 
     _playVideo(videoPath, onEnd: () {
-      if (index == correctFlagIndex) {
+      if (selectedIndex == correctIndex) {
         correctSelections++;
-        if (correctSelections >= maxCorrectSelections) {
+        if (correctSelections >= maxCorrectSelections &&
+            wrongOrTimeoutCount < maxWrongOrTimeouts) {
           _terminated = true;
           _playVideo(successVideo, onEnd: _showGameOverDialog);
         } else {
@@ -359,7 +391,12 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
   }
 
   void _showGameOverDialog() {
-    final bool isWin = correctSelections >= maxCorrectSelections;
+    final bool isWin = correctSelections >= maxCorrectSelections &&
+        wrongOrTimeoutCount < maxWrongOrTimeouts;
+    final int totalQuestions = _shuffledQuestions.length;
+    final int answeredQuestions = correctSelections + wrongOrTimeoutCount;
+    final double accuracy =
+        totalQuestions > 0 ? (correctSelections / totalQuestions) * 100 : 0;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -400,9 +437,28 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
             ),
             const SizedBox(height: 18),
             Text(
-              'Question: ${correctSelections + wrongOrTimeoutCount}\nMistakes: $wrongOrTimeoutCount',
+              'Questions Answered: $answeredQuestions / $totalQuestions',
               style: const TextStyle(fontSize: 16, color: Colors.white54),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Correct: $correctSelections',
+              style: const TextStyle(fontSize: 16, color: Colors.greenAccent),
+            ),
+            Text(
+              'Mistakes: $wrongOrTimeoutCount',
+              style: const TextStyle(fontSize: 16, color: Colors.redAccent),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Accuracy: ${accuracy.toStringAsFixed(1)}%',
+              style: const TextStyle(fontSize: 16, color: Colors.blueAccent),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Score: $correctSelections / $totalQuestions',
+              style: const TextStyle(fontSize: 16, color: Colors.amber),
             ),
           ],
         ),
@@ -415,6 +471,19 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
               Navigator.of(context).pop();
               Navigator.of(context).maybePop();
             },
+          ),
+          ElevatedButton.icon(
+            onPressed: openQuizReportPdf,
+            icon: const Icon(Icons.download),
+            label: const Text('Download Report'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
           ),
         ],
       ),
@@ -465,7 +534,7 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
                       color: Colors.red, size: 32),
                 const SizedBox(width: 24),
                 // Timer
-                Icon(Icons.timer, color: Colors.white, size: 32),
+                const Icon(Icons.timer, color: Colors.white, size: 32),
                 const SizedBox(width: 6),
                 Text(
                   sec.toString(),
@@ -505,5 +574,211 @@ class _VideoFlowScreenState extends State<VideoFlowScreen> {
         ],
       ),
     );
+  }
+
+  // Call this when quiz is completed (e.g., after last question is answered)
+  Future<void> _saveQuizResult() async {
+    try {
+      final userId = await AuthService.getUserId();
+      final userType = await AuthService.getUserType();
+      if (userId == null || userType != 'student') {
+        throw Exception('User not logged in');
+      }
+      final timeTaken =
+          DateTime.now().difference(_quizStartTime ?? DateTime.now());
+      final List<Map<String, dynamic>> questionResults = [];
+      for (int i = 0; i < _shuffledQuestions.length; i++) {
+        final question = _shuffledQuestions[i];
+        final correctAnswer = _correctAnswerIndices[i];
+        final selectedAnswer = _selectedAnswers[i];
+        final isCorrect = selectedAnswer == correctAnswer;
+        questionResults.add({
+          'questionIndex': i,
+          'question': question['question']?.toString() ?? '',
+          'options': (question['options'] as List<dynamic>?)
+                  ?.map((option) => option?.toString() ?? '')
+                  .toList() ??
+              [],
+          'correctAnswer': correctAnswer,
+          'selectedAnswer': selectedAnswer,
+          'isCorrect': isCorrect,
+          'explanation': question['explanation']?.toString() ?? '',
+        });
+      }
+      final success = await _quizService.storeQuizResult(
+        studentId: userId,
+        subjectId: widget.subjectData['id']?.toString() ?? '',
+        subjectName:
+            widget.subjectData['title']?.toString() ?? 'Unknown Subject',
+        topicId: widget.topicData['id']?.toString() ?? '',
+        topicName: widget.topicData['title'] ??
+            widget.topicData['name'] ??
+            'Unknown Topic',
+        score: _score,
+        totalQuestions: _shuffledQuestions.length,
+        questionResults: questionResults,
+        timeTaken: timeTaken,
+      );
+      // Optionally handle success/failure
+    } catch (e) {
+      print('Error saving quiz result: $e');
+    }
+  }
+
+  // Example: Call _saveQuizResult() when quiz is finished
+  // You should call this at the appropriate place in your quiz completion logic
+
+  // PDF generation logic (for download)
+  // You can call this method and use the generated PDF file as needed
+  Future<String?> generateQuizReportPdf() async {
+    try {
+      final pdf = pw.Document();
+      final List<Map<String, dynamic>> questionResults = [];
+      for (int i = 0; i < _shuffledQuestions.length; i++) {
+        final question = _shuffledQuestions[i];
+        final correctAnswer = _correctAnswerIndices[i];
+        final selectedAnswer = _selectedAnswers[i];
+        final isCorrect = selectedAnswer == correctAnswer;
+        questionResults.add({
+          'questionIndex': i,
+          'question': question['question']?.toString() ?? '',
+          'options': (question['options'] as List<dynamic>?)
+                  ?.map((option) => option?.toString() ?? '')
+                  .toList() ??
+              [],
+          'correctAnswer': correctAnswer,
+          'selectedAnswer': selectedAnswer,
+          'isCorrect': isCorrect,
+          'explanation': question['explanation']?.toString() ?? '',
+        });
+      }
+      final int totalQuestions = _shuffledQuestions.length;
+      final int answeredQuestions =
+          _selectedAnswers.where((a) => a != null).length;
+      final int score = _selectedAnswers.asMap().entries.where((entry) {
+        final idx = entry.key;
+        final selected = entry.value;
+        return selected != null && selected == _correctAnswerIndices[idx];
+      }).length;
+      final int mistakes = answeredQuestions - score;
+      final double accuracy =
+          totalQuestions > 0 ? (score / totalQuestions) * 100 : 0;
+      final correctQuestions =
+          questionResults.where((q) => q['isCorrect'] == true).toList();
+      final wrongQuestions =
+          questionResults.where((q) => q['isCorrect'] == false).toList();
+      pdf.addPage(
+        pw.MultiPage(
+          build: (context) => [
+            pw.Text('Quiz Report',
+                style:
+                    pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 16),
+            pw.Text('Subject: ${widget.subjectData['title'] ?? 'Unknown'}'),
+            pw.Text(
+                'Topic: ${widget.topicData['title'] ?? widget.topicData['name'] ?? 'Unknown'}'),
+            pw.SizedBox(height: 8),
+            pw.Text('Questions Answered: $answeredQuestions / $totalQuestions'),
+            pw.Text('Correct: $score'),
+            pw.Text('Mistakes: $mistakes'),
+            pw.Text('Accuracy: ${accuracy.toStringAsFixed(1)}%'),
+            pw.Text('Score: $score / $totalQuestions'),
+            pw.SizedBox(height: 16),
+            pw.Text('Correctly Answered Questions:',
+                style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold, color: PdfColors.green)),
+            ...correctQuestions.map((q) => pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 8),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                          'Q${(q['questionIndex'] as int) + 1}: ${q['question']}',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 4),
+                      ...List.generate((q['options'] as List).length, (j) {
+                        final opt = q['options'][j];
+                        final isCorrect = j == q['correctAnswer'];
+                        return pw.Row(
+                          children: [
+                            if (isCorrect)
+                              pw.Text('✔ ',
+                                  style: pw.TextStyle(color: PdfColors.green)),
+                            pw.Text(opt),
+                          ],
+                        );
+                      }),
+                      if (q['explanation'] != null &&
+                          (q['explanation'] as String).isNotEmpty)
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.only(top: 4),
+                          child: pw.Text('Explanation: ${q['explanation']}',
+                              style: pw.TextStyle(
+                                  fontSize: 10, color: PdfColors.blue)),
+                        ),
+                      pw.Divider(),
+                    ],
+                  ),
+                )),
+            pw.SizedBox(height: 12),
+            pw.Text('Wrong/Incorrectly Answered Questions:',
+                style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold, color: PdfColors.red)),
+            ...wrongQuestions.map((q) => pw.Container(
+                  margin: const pw.EdgeInsets.only(bottom: 8),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                          'Q${(q['questionIndex'] as int) + 1}: ${q['question']}',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 4),
+                      ...List.generate((q['options'] as List).length, (j) {
+                        final opt = q['options'][j];
+                        final isCorrect = j == q['correctAnswer'];
+                        final isSelected = j == q['selectedAnswer'];
+                        return pw.Row(
+                          children: [
+                            if (isCorrect)
+                              pw.Text('✔ ',
+                                  style: pw.TextStyle(color: PdfColors.green)),
+                            if (isSelected && !isCorrect)
+                              pw.Text('✖ ',
+                                  style: pw.TextStyle(color: PdfColors.red)),
+                            pw.Text(opt),
+                          ],
+                        );
+                      }),
+                      if (q['explanation'] != null &&
+                          (q['explanation'] as String).isNotEmpty)
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.only(top: 4),
+                          child: pw.Text('Explanation: ${q['explanation']}',
+                              style: pw.TextStyle(
+                                  fontSize: 10, color: PdfColors.blue)),
+                        ),
+                      pw.Divider(),
+                    ],
+                  ),
+                )),
+          ],
+        ),
+      );
+      final output = await getApplicationDocumentsDirectory();
+      final file = File('${output.path}/quiz_report.pdf');
+      await file.writeAsBytes(await pdf.save());
+      return file.path;
+    } catch (e) {
+      print('Error generating PDF: $e');
+      return null;
+    }
+  }
+
+  // Helper to open the generated PDF file
+  Future<void> openQuizReportPdf() async {
+    final path = await generateQuizReportPdf();
+    if (path != null) {
+      await OpenFilex.open(path);
+    }
   }
 }

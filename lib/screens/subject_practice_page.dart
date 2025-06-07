@@ -1,5 +1,5 @@
+import 'package:achiver_app/screens/videos_screen.dart';
 import 'package:flutter/material.dart';
-import 'mcq_page.dart';
 import 'fillups_page.dart';
 import 'textbook_page.dart';
 
@@ -341,7 +341,7 @@ class SubjectPracticePageState extends State<SubjectPracticePage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Practice ${topic['title']}',
+                'Practice ${topic['name']}',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -358,7 +358,7 @@ class SubjectPracticePageState extends State<SubjectPracticePage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => McqPage(
+                      builder: (context) => VideoFlowScreen(
                         subjectData: widget.subjectData,
                         topicData: topic,
                       ),
@@ -386,7 +386,7 @@ class SubjectPracticePageState extends State<SubjectPracticePage> {
               ListTile(
                 leading:
                     Icon(Icons.menu_book, color: widget.subjectData['color']),
-                title: const Text('Read Textbook'),
+                title: const Text('Listen Textbook'),
                 subtitle: const Text('Study the topic in detail'),
                 onTap: () {
                   // Debug print to inspect the data structure

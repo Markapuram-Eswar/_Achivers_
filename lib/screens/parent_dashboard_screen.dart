@@ -1,3 +1,10 @@
+import 'leave_application_screen.dart';
+import 'contact_teacher_screen.dart';
+import 'parent_profile_page.dart';
+import 'fee_payments_screen.dart';
+import 'parent_progress_page.dart';
+import '../services/parent_service.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:achiver_app/screens/reports_zone_page.dart';
 import 'package:flutter/material.dart';
 import 'leave_application_screen.dart';
@@ -7,15 +14,6 @@ import 'fee_payments_screen.dart';
 import 'parent_progress_page.dart' as parent_progress;
 import '../services/parent_service.dart';
 
-void main() {
-  runApp(
-    const MaterialApp(
-      home: ParentDashboardScreen(),
-      debugShowCheckedModeBanner: false,
-    ),
-  );
-}
-
 class ParentDashboardScreen extends StatefulWidget {
   const ParentDashboardScreen({super.key});
 
@@ -24,14 +22,45 @@ class ParentDashboardScreen extends StatefulWidget {
 }
 
 class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
-  List<Map<String, dynamic>> _children = [];
+  final ParentService _parentService = ParentService();
+  Map<String, dynamic>? _parentData;
+  bool _isLoading = true;
   bool _isLoadingChildren = true;
   String? _childrenError;
+  List<Map<String, dynamic>> _children = [];
 
   @override
   void initState() {
     super.initState();
+    _loadParentData();
     _fetchChildren();
+
+    /* Backend TODO: Fetch parent dashboard data from backend (API call, database read) */
+  }
+
+  Future<void> _loadParentData() async {
+    try {
+      final parentData = await _parentService.getParentProfile();
+      print("parentData: ${parentData['name']}");
+      if (mounted) {
+        setState(() {
+          _parentData = parentData;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading profile: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _fetchChildren() async {
@@ -125,7 +154,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               _buildQuickActions(context),
               const SizedBox(height: 20),
               _buildAttendanceAndGrades(),
-              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -154,9 +182,9 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Eswar Kumar',
-                  style: TextStyle(
+                Text(
+                  "${_parentData?['name'] ?? ''}",
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -164,7 +192,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  'CSE-B •21BF1A05A9',
+                  "${_parentData?['phone'] ?? ''}",
                   style: TextStyle(
                     color: Colors.blue[50],
                     fontSize: 16,
@@ -194,106 +222,6 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        if (_isLoadingChildren)
-          const Center(child: CircularProgressIndicator()),
-        if (_childrenError != null)
-          Center(
-              child:
-                  Text(_childrenError!, style: TextStyle(color: Colors.red))),
-        if (!_isLoadingChildren && _childrenError == null)
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            childAspectRatio: 1.2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            children: [
-              _buildActionButton(
-                'Leave\nApplication',
-                Icons.event_busy_rounded,
-                Colors.orange[400]!,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const LeaveApplicationScreen(),
-                  ),
-                ),
-              ),
-              _buildActionButton(
-                'Contact\nTeacher',
-                Icons.chat_bubble_outline_rounded,
-                Colors.green[400]!,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ContactTeacherScreen(),
-                  ),
-                ),
-              ),
-              _buildActionButton(
-                'Progress',
-                Icons.assessment_rounded,
-                Colors.purple[400]!,
-                onTap: () async {
-                  if (_children.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('No children found for this parent.')),
-                    );
-                    return;
-                  }
-                  if (_children.length == 1) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            parent_progress.ProgressPage(child: _children[0]),
-                      ),
-                    );
-                  } else {
-                    final selected = await showDialog<Map<String, dynamic>>(
-                      context: context,
-                      builder: (context) {
-                        return SimpleDialog(
-                          title: const Text('Select Child'),
-                          children: _children.map((child) {
-                            final name =
-                                child['name'] ?? child['fullName'] ?? 'Unknown';
-                            return SimpleDialogOption(
-                              onPressed: () => Navigator.pop(context, child),
-                              child: Text(name),
-                            );
-                          }).toList(),
-                        );
-                      },
-                    );
-                    if (selected != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              parent_progress.ProgressPage(child: selected),
-                        ),
-                      );
-                    }
-                  }
-                },
-              ),
-              _buildActionButton(
-                'Fee\nPayments',
-                Icons.payment_rounded,
-                Colors.blue[400]!,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const FeePaymentsScreen(),
-                  ),
-                ),
-              ),
-            ],
-          ),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -332,23 +260,50 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
               'Progress',
               Icons.assessment_rounded,
               Colors.purple[400]!,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ReportsZonePage(),
-                ),
-              ),
-            ),
-            _buildActionButton(
-              'Fee\nPayments',
-              Icons.payment_rounded,
-              Colors.blue[400]!,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const FeePaymentsScreen(),
-                ),
-              ),
+              onTap: () async {
+                if (_children.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('No children found for this parent.')),
+                  );
+                  return;
+                }
+                if (_children.length == 1) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          parent_progress.ProgressPage(child: _children[0]),
+                    ),
+                  );
+                } else {
+                  final selected = await showDialog<Map<String, dynamic>>(
+                    context: context,
+                    builder: (context) {
+                      return SimpleDialog(
+                        title: const Text('Select Child'),
+                        children: _children.map((child) {
+                          final name =
+                              child['name'] ?? child['fullName'] ?? 'Unknown';
+                          return SimpleDialogOption(
+                            onPressed: () => Navigator.pop(context, child),
+                            child: Text(name),
+                          );
+                        }).toList(),
+                      );
+                    },
+                  );
+                  if (selected != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            parent_progress.ProgressPage(child: selected),
+                      ),
+                    );
+                  }
+                }
+              },
             ),
           ],
         ),
@@ -397,6 +352,35 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
   }
 
   Widget _buildAttendanceAndGrades() {
+    if (_children.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Calculate average attendance and grade across all children
+    double totalAttendance = 0;
+    double totalGradeScore = 0;
+    int validChildren = 0;
+
+    for (var child in _children) {
+      final attendance = child['attendance'] as Map<String, dynamic>?;
+      final grades = child['grades'] as Map<String, dynamic>?;
+
+      if (attendance != null && attendance['percentage'] != null) {
+        totalAttendance += attendance['percentage'];
+        validChildren++;
+      }
+
+      if (grades != null && grades['averageScore'] != null) {
+        totalGradeScore += grades['averageScore'];
+      }
+    }
+
+    final averageAttendance =
+        validChildren > 0 ? totalAttendance / validChildren : 0;
+    final averageGradeScore =
+        validChildren > 0 ? totalGradeScore / validChildren : 0;
+    final averageGrade = _calculateGrade(averageGradeScore.toDouble());
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -413,7 +397,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             Expanded(
               child: _buildStatCard(
                 'Attendance',
-                '95%',
+                '${averageAttendance.toStringAsFixed(1)}%',
                 Icons.calendar_today,
                 Colors.green,
               ),
@@ -422,7 +406,7 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
             Expanded(
               child: _buildStatCard(
                 'Average Grade',
-                'A',
+                averageGrade,
                 Icons.grade,
                 Colors.blue,
               ),
@@ -431,6 +415,15 @@ class _ParentDashboardScreenState extends State<ParentDashboardScreen> {
         ),
       ],
     );
+  }
+
+  String _calculateGrade(double score) {
+    if (score >= 90) return 'A';
+    if (score >= 80) return 'B';
+    if (score >= 70) return 'C';
+    if (score >= 60) return 'D';
+    if (score >= 50) return 'E';
+    return 'F';
   }
 
   Widget _buildStatCard(

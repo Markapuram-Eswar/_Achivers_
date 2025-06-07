@@ -8,6 +8,15 @@ import 'screens/payment_screen.dart';
 import 'screens/notification_page.dart';
 import 'screens/teacher_dashboard_screen.dart';
 import 'screens/parent_dashboard_screen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+// Add this background message handler before main()
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  print('Handling a background message: ${message.messageId}');
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +25,9 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Set up background message handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   } catch (e) {
     // Logging the error but continuing app execution as Firebase is not critical
     debugPrint('Firebase initialization error: $e');

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../services/AttendanceService.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AttendanceCalendarPage extends StatefulWidget {
   const AttendanceCalendarPage({super.key});
@@ -21,6 +23,7 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
   int _absentCount = 0;
   double _attendancePercentage = 0.0;
   bool _isLoading = true;
+  CalendarFormat _calendarFormat = CalendarFormat.month;
 
   // Example static public holidays list
   final List<Map<String, String>> _publicHolidays = [
@@ -53,19 +56,26 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
     try {
       // TODO: Replace with actual studentId (e.g., from auth)
       final studentId = 'STUDENT_ID_HERE';
-      final records =
-          await _attendanceService.getStudentAttendanceRecords(studentId);
+      final records = await _attendanceService.getStudentAttendanceRecords(studentId);
 
       final Map<DateTime, String> attMap = {};
       int present = 0, absent = 0;
       for (var rec in records) {
-        final dateParts = rec['date'].split('-').map(int.parse).toList();
-        final date = DateTime.utc(dateParts[0], dateParts[1], dateParts[2]);
+        // Handle both string dates and Timestamp objects
+        DateTime date;
+        if (rec['date'] is String) {
+          final dateParts = rec['date'].split('-').map(int.parse).toList();
+          date = DateTime.utc(dateParts[0], dateParts[1], dateParts[2]);
+        } else if (rec['date'] is Timestamp) {
+          date = (rec['date'] as Timestamp).toDate();
+        } else {
+          print('Warning: Unknown date format: ${rec['date']}');
+          continue;
+        }
+        
         attMap[date] = rec['present'] == true ? 'Present' : 'Absent';
-        if (rec['present'] == true)
-          present++;
-        else
-          absent++;
+        if (rec['present'] == true) present++;
+        else absent++;
       }
       final total = present + absent;
       setState(() {
@@ -95,8 +105,7 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
       children: [
         Text(
           '$value',
-          style: TextStyle(
-              fontSize: 20, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
         ),
         Text(label, style: TextStyle(color: color)),
       ],
@@ -133,14 +142,9 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                _buildSummaryItem(
-                                    'Present', _presentCount, Colors.green),
-                                _buildSummaryItem(
-                                    'Absent', _absentCount, Colors.red),
-                                _buildSummaryItem(
-                                    'Attendance %',
-                                    _attendancePercentage.toStringAsFixed(1),
-                                    Colors.blue),
+                                _buildSummaryItem('Present', _presentCount, Colors.green),
+                                _buildSummaryItem('Absent', _absentCount, Colors.red),
+                                _buildSummaryItem('Attendance %', _attendancePercentage.toStringAsFixed(1), Colors.blue),
                               ],
                             ),
                           ),
@@ -170,6 +174,12 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                   _focusedDay = focusedDay;
                                 });
                               },
+                              calendarFormat: _calendarFormat,
+                              onFormatChanged: (format) {
+                                setState(() {
+                                  _calendarFormat = format;
+                                });
+                              },
                               calendarStyle: const CalendarStyle(
                                 todayDecoration: BoxDecoration(
                                   color: Colors.orangeAccent,
@@ -182,10 +192,9 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                   fontWeight: FontWeight.w600,
                                 ),
                                 formatButtonTextStyle: GoogleFonts.poppins(),
-                                formatButtonVisible: false,
+                                formatButtonVisible: true,
                                 titleCentered: true,
                               ),
-                              calendarFormat: CalendarFormat.month,
                               calendarBuilders: CalendarBuilders(
                                 defaultBuilder: (context, date, _) {
                                   final color = _getStatusColor(date);
@@ -216,8 +225,7 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                     alignment: Alignment.center,
                                     child: Text(
                                       '${date.day}',
-                                      style:
-                                          const TextStyle(color: Colors.white),
+                                      style: const TextStyle(color: Colors.white),
                                     ),
                                   );
                                 },
@@ -239,8 +247,7 @@ class AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                   children: [
                     const Text(
                       'Public Holidays',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),
                     ListView.separated(

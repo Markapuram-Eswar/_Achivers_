@@ -8,14 +8,21 @@ import 'timetable_page.dart';
 import 'welcome_page.dart';
 import 'progress_page.dart';
 import 'practice_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(); // Initialize Firebase
   runApp(MyHomePage(
     selectedTheme: 'Game Display',
+    documentId: 'Profile', // Make sure this document exists in Firestore
   ));
 }
 
 class MyHomePage extends StatefulWidget {
+  final String documentId; // e.g., 'achievers_profile'
+
   final VoidCallback? onThemeToggle;
   final String selectedTheme;
 
@@ -23,6 +30,7 @@ class MyHomePage extends StatefulWidget {
     super.key,
     this.onThemeToggle,
     required this.selectedTheme,
+    this.documentId = 'Profile', // Default document ID
   });
 
   @override
@@ -49,14 +57,17 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
+    print('Navigating to index: $index'); // Debug print
+    if (_pageController.hasClients) {
+      setState(() {
+        _selectedIndex = index;
+      });
       _pageController.animateToPage(
         index,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-    });
+    }
   }
 
   Widget _buildNavItem(int index) {
@@ -126,99 +137,216 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Container(
-        decoration: _getThemeDecoration(),
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            automaticallyImplyLeading: false,
-            backgroundColor: _getThemeColor(),
-            title: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Colors.white,
-                  child: ClipOval(
-                    child: Image.asset(
-                      'assets/images/logo.png',
-                      width: 35,
-                      height: 35,
-                      fit: BoxFit.cover,
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('schoolprofile')
+          .doc(widget.documentId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        // Enhanced error handling
+        if (snapshot.hasError) {
+          return Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error, color: Colors.red, size: 50),
+                  const SizedBox(height: 16),
+                  Text('Error: ${snapshot.error}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            backgroundColor: Colors.white,
+            body: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading school profile...'),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Check if document exists
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.warning, color: Colors.orange, size: 50),
+                  const SizedBox(height: 16),
+                  Text(
+                      'Document "${widget.documentId}" not found in "schoolprofile" collection'),
+                  const SizedBox(height: 8),
+                  const Text('Please check your Firestore setup'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
+
+        // Check if data exists
+        if (data == null || data.isEmpty) {
+          return Scaffold(
+            backgroundColor: Colors.white,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.data_object, color: Colors.blue, size: 50),
+                  const SizedBox(height: 16),
+                  const Text('No data found in document'),
+                  const SizedBox(height: 8),
+                  Text('Document ID: ${widget.documentId}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Extract data with fallbacks
+        final logoUrl = data['appLogo']?.toString() ?? '';
+        final appName = data['appName']?.toString() ?? 'School App';
+
+        // Debug print (remove in production)
+        print('Firebase data loaded: appName=$appName, logoUrl=$logoUrl');
+
+        return Container(
+          decoration: _getThemeDecoration(),
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              backgroundColor: _getThemeColor(),
+              automaticallyImplyLeading: false,
+              title: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.white,
+                    child: logoUrl.isNotEmpty
+                        ? ClipOval(
+                            child: Image.network(
+                              logoUrl,
+                              width: 35,
+                              height: 35,
+                              fit: BoxFit.cover,
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return const CircularProgressIndicator(
+                                    strokeWidth: 2);
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                print('Logo loading error: $error');
+                                return const Icon(Icons.school,
+                                    color: Colors.black);
+                              },
+                            ),
+                          )
+                        : const Icon(Icons.school, color: Colors.black),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      appName,
+                      style: const TextStyle(fontSize: 20, color: Colors.white),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                InkWell(
+                  onTap: () {
+                    Navigator.pushNamed(context, '/notifications');
+                  },
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: const BoxDecoration(
+                      image: DecorationImage(
+                        image: NetworkImage(
+                            'https://img.icons8.com/isometric/50/appointment-reminders.png'),
+                        fit: BoxFit.contain,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Achievers',
-                  style: TextStyle(
-                    fontSize: 24,
-                    color: Colors.white,
+                InkWell(
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/welcome');
+                  },
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: const BoxDecoration(
+                      image: DecorationImage(
+                        image: NetworkImage(
+                            'https://img.icons8.com/isometric/50/video-card.png'),
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-            actions: [
-              InkWell(
-                onTap: () {
-                  Navigator.pushNamed(context, '/notifications');
-                },
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(
-                      image: NetworkImage(
-                          'https://img.icons8.com/isometric/50/appointment-reminders.png'),
-                      fit: BoxFit.contain,
-                    ),
+            body: PageView(
+              controller: _pageController,
+              onPageChanged: (index) => setState(() => _selectedIndex = index),
+              children: [
+                _buildHomePage(context),
+              ],
+            ),
+            bottomNavigationBar: Container(
+              height: 70,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3),
+                    spreadRadius: 1,
+                    blurRadius: 5,
+                    offset: const Offset(0, -2),
                   ),
-                ),
+                ],
               ),
-              InkWell(
-                onTap: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const WelcomePage(),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: const BoxDecoration(
-                    image: DecorationImage(
-                      image: NetworkImage(
-                          'https://img.icons8.com/isometric/50/video-card.png'),
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
+              child: Row(
+                children: List.generate(
+                    _labels.length, (index) => _buildNavItem(index)),
               ),
-            ],
-          ),
-          body: PageView(
-            controller: _pageController,
-            onPageChanged: (index) => setState(() => _selectedIndex = index),
-            children: [
-              _buildHomePage(context),
-              const AttendanceCalendarPage(),
-              const ContactTeacherScreen(),
-              const ProfilePage(),
-            ],
-          ),
-          bottomNavigationBar: Container(
-            color: Colors.white,
-            child: Row(
-              children: List.generate(
-                  _labels.length, (index) => _buildNavItem(index)),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

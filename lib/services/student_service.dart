@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'AttendanceService.dart';
+import 'auth_service.dart';
 
 class StudentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -78,6 +79,55 @@ class StudentService {
     } catch (e) {
       print('Error fetching all students: $e');
       return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> getStudentProfile() async {
+    try {
+      final userId = await AuthService.getUserId();
+      final userType = await AuthService.getUserType();
+
+      if (userId == null || userType != 'student') {
+        throw 'No logged-in student found.';
+      }
+
+      final doc = await _firestore.collection('students').doc(userId).get();
+
+      if (!doc.exists) {
+        throw 'Student profile not found.';
+      }
+
+      return doc.data()!;
+    } catch (e) {
+      print('Error getting student profile: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateStudentProfile({
+    required String name,
+    required String className,
+    required String section,
+    required String parentEmail,
+  }) async {
+    try {
+      final userId = await AuthService.getUserId();
+      final userType = await AuthService.getUserType();
+
+      if (userId == null || userType != 'student') {
+        throw 'No logged-in student found.';
+      }
+
+      await _firestore.collection('students').doc(userId).update({
+        'name': name.trim(),
+        'class': className.trim(),
+        'section': section.trim(),
+        'parentEmail': parentEmail.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error updating student profile: $e');
+      rethrow;
     }
   }
 }

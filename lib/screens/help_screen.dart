@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/help_service.dart';
 
 class HelpScreen extends StatefulWidget {
   const HelpScreen({super.key});
@@ -12,7 +14,42 @@ class _HelpScreenState extends State<HelpScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _issueController = TextEditingController();
+  final HelpService _helpService = HelpService();
   bool _isLoading = false;
+  List<Map<String, dynamic>> _helpRequests = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHelpRequests();
+  }
+
+  void _loadHelpRequests() {
+    _helpService.getHelpRequests().listen(
+      (snapshot) {
+        if (mounted) {
+          setState(() {
+            _helpRequests = snapshot.docs
+                .map((doc) => {
+                      'id': doc.id,
+                      ...doc.data() as Map<String, dynamic>,
+                    })
+                .toList();
+          });
+        }
+      },
+      onError: (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error loading help requests: $error'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+    );
+  }
 
   @override
   void dispose() {
@@ -22,24 +59,43 @@ class _HelpScreenState extends State<HelpScreen> {
     super.dispose();
   }
 
-  void _submitForm() {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      // Simulate form submission
-      /* Backend TODO: Submit help request to backend (API call, database write) */
-      Future.delayed(const Duration(seconds: 2), () {
+    setState(() => _isLoading = true);
+
+    try {
+      await _helpService.submitHelpRequest(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        issue: _issueController.text.trim(),
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your request has been submitted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _formKey.currentState!.reset();
+        _nameController.clear();
+        _emailController.clear();
+        _issueController.clear();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error submitting request: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
         setState(() => _isLoading = false);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Your request has been submitted successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          _formKey.currentState!.reset();
-        }
-      });
+      }
     }
   }
 
@@ -48,6 +104,33 @@ class _HelpScreenState extends State<HelpScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Help & Support'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: () async {
+              try {
+                await _helpService.printHelpRequests();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Check console for help requests data'),
+                      backgroundColor: Colors.blue,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -154,6 +237,56 @@ class _HelpScreenState extends State<HelpScreen> {
               ),
             ),
             const SizedBox(height: 32),
+            if (_helpRequests.isNotEmpty) ...[
+              const Text(
+                'Your Previous Requests',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _helpRequests.length,
+                itemBuilder: (context, index) {
+                  final request = _helpRequests[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ExpansionTile(
+                      title: Text(
+                        request['issue'].toString().split('\n').first,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      subtitle: Text(
+                        'Status: ${request['status']} • ${_formatDate(request['createdAt'])}',
+                        style: TextStyle(
+                          color: _getStatusColor(request['status']),
+                          fontSize: 12,
+                        ),
+                      ),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Issue: ${request['issue']}'),
+                              const SizedBox(height: 8),
+                              Text('Email: ${request['email']}'),
+                              const SizedBox(height: 8),
+                              Text('Submitted: ${_formatDate(request['createdAt'])}'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+            const SizedBox(height: 32),
             const Text(
               'Frequently Asked Questions',
               style: TextStyle(
@@ -196,5 +329,26 @@ class _HelpScreenState extends State<HelpScreen> {
         ),
       ],
     );
+  }
+
+  String _formatDate(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
+    if (timestamp is Timestamp) {
+      return '${timestamp.toDate().day}/${timestamp.toDate().month}/${timestamp.toDate().year}';
+    }
+    return 'N/A';
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'resolved':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
 }

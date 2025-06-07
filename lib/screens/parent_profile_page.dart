@@ -1,3 +1,4 @@
+import 'package:achiver_app/screens/help_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -307,22 +308,20 @@ class _ParentProfilePageState extends State<ParentProfilePage> {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) =>
-                  EditParentProfilePage(parentData: parentData),
+              builder: (context) => const EditParentProfilePage(),
             ),
           );
           if (result != null) {
             setState(() {
-              parentData.addAll(result);
+              _parentData = result;
             });
           }
         }),
-        _buildMenuItem('Change Password', Icons.lock_outline, onTap: () {
-          _showChangePasswordDialog();
-        }),
-        _buildMenuItem('Notification Settings', Icons.notifications_outlined,
-            onTap: () {
-          _showNotificationSettingsDialog();
+        _buildMenuItem('Help', Icons.help_outline, onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HelpScreen()),
+          );
         }),
         const SizedBox(height: 10),
         _buildMenuItem('Logout', Icons.logout, color: Colors.red, onTap: () {

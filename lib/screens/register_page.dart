@@ -3,6 +3,8 @@ import 'package:fluttertoast/fluttertoast.dart';
 import '../services/registration_service.dart';
 import 'login_page.dart';
 import 'payment_screen.dart';
+import 'dart:math';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -19,7 +21,9 @@ class _RegisterPageState extends State<RegisterPage> {
   // Form controllers - common fields
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
 
   // Student specific
   final _rollNumberController = TextEditingController();
@@ -33,11 +37,28 @@ class _RegisterPageState extends State<RegisterPage> {
   // Parent specific
   final _childRollNumberController = TextEditingController();
 
+  // FCM Tokens
+  Future<String> _generateFCMToken(String type) async {
+    final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+
+    // Get the token
+    String? token = await _firebaseMessaging.getToken();
+
+    if (token == null) {
+      throw Exception('Failed to get FCM token');
+    }
+
+    // Add prefix based on type
+    return type == 'student' ? '$token' : '$token';
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
     _phoneController.dispose();
+    _addressController.dispose();
     _rollNumberController.dispose();
     _classController.dispose();
     _sectionController.dispose();
@@ -50,26 +71,28 @@ class _RegisterPageState extends State<RegisterPage> {
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final registrationService = RegistrationService();
 
-      if (_selectedRole == 0) { // Student
+      if (_selectedRole == 0) {
+        // Student
         // Show payment screen first
-        final paymentResult = await Navigator.push<bool>(
-          context,
-          MaterialPageRoute(builder: (context) => const PaymentScreen()),
-        );
-        
-        if (paymentResult != true) {
-          setState(() => _isLoading = false);
-          return;
-        }
+        // final paymentResult = await Navigator.push<bool>(
+        //   context,
+        //   MaterialPageRoute(builder: (context) => const PaymentScreen()),
+        // );
 
-        // After payment, complete registration
+        // if (paymentResult != true) {
+        //   setState(() => _isLoading = false);
+        //   return;
+        // }
+
+        // Generate student FCM token
+        final studentFCMToken = await _generateFCMToken('student');
+
+        // Register student
         await registrationService.registerStudent(
           rollNumber: _rollNumberController.text.trim(),
           name: _nameController.text.trim(),
@@ -78,35 +101,40 @@ class _RegisterPageState extends State<RegisterPage> {
           parentEmail: _emailController.text.trim().isNotEmpty
               ? _emailController.text.trim()
               : null,
+          studentFCMToken: studentFCMToken,
         );
-      } else { // Parent
+      } else {
+        // Parent
+        // Generate parent FCM token
+        final parentFCMToken = await _generateFCMToken('parent');
+
+        // Register parent
         await registrationService.registerParent(
           name: _nameController.text.trim(),
           phone: _phoneController.text.trim(),
           childRollNumber: _childRollNumberController.text.trim(),
+          parentFCMToken: parentFCMToken,
         );
       }
 
-      Fluttertoast.showToast(msg: 'Registration successful! Please log in.');
-      
-      // Navigate back to login
       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registration successful!')),
+        );
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const LoginPage()),
         );
       }
     } catch (e) {
-      Fluttertoast.showToast(
-        msg: 'Registration failed: $e',
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registration failed: ${e.toString()}')),
+        );
+      }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -305,7 +333,7 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget _buildRoleRadio(int index, String title) {
     // Skip Teacher role (index 1)
     if (index == 1) return const SizedBox.shrink();
-    
+
     return ChoiceChip(
       label: Text(
         title,

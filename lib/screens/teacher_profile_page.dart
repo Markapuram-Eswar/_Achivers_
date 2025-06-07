@@ -3,6 +3,9 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/auth_service.dart';
 import '../services/teacher_profile_service.dart';
+import '../services/LeaveService.dart';
+import 'package:intl/intl.dart';
+import 'teacher_resources_screen.dart';
 
 class TeacherProfilePage extends StatefulWidget {
   const TeacherProfilePage({super.key});
@@ -12,25 +15,13 @@ class TeacherProfilePage extends StatefulWidget {
 }
 
 class _TeacherProfilePageState extends State<TeacherProfilePage> {
+  final TeacherProfileService _profileService = TeacherProfileService();
+  final LeaveService _leaveService = LeaveService();
   File? _image;
   final ImagePicker _picker = ImagePicker();
   Map<String, dynamic>? teacherData;
   bool isLoading = true;
-
-  // Dropdown state
-  String? _selectedClass;
-  String? _selectedSection;
-  final List<String> _classes = [
-    '6', '7', '8', '9', '10', '11', '12'
-  ];
-  final List<String> _sections = ['A', 'B', 'C', 'D'];
-  bool _isUpdatingClassSection = false;
-  bool _isEditingClassSection = false;
-
-  // Add state for add-class UI
-  bool _isAddingClass = false;
-  String? _newClass;
-  String? _newSection;
+  List<Map<String, dynamic>>? _leaveAppointments;
 
   // Sample teacher data - in a real app, this would come from a database
   // final Map<String, dynamic> teacherData = {
@@ -62,6 +53,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   void initState() {
     super.initState();
     fetchTeacherProfile();
+    _loadLeaveAppointments();
   }
 
   Future<void> fetchTeacherProfile() async {
@@ -72,32 +64,31 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
       });
       return;
     }
-    final profile = await TeacherProfileService().getTeacherProfile(teacherId);
+    final profile = await _profileService.getTeacherProfile(teacherId);
     setState(() {
       teacherData = profile;
       isLoading = false;
-      // Set initial dropdown values if available
-      _selectedClass = profile?['class']?.toString();
-      _selectedSection = profile?['section']?.toString();
     });
   }
 
-  Future<void> _updateClassSection() async {
-    final String? teacherId = await AuthService.getUserId();
-    if (teacherId == null || _selectedClass == null || _selectedSection == null) return;
-    setState(() => _isUpdatingClassSection = true);
+  Future<void> _loadLeaveAppointments() async {
     try {
-      await TeacherProfileService().updateTeacherClassSection(
-        teacherId: teacherId,
-        className: _selectedClass!,
-        section: _selectedSection!,
-      );
-      // Optionally refresh profile
-      await fetchTeacherProfile();
+      final userId = await AuthService.getUserId();
+      if (userId != null) {
+        final appointments =
+            await _leaveService.getLeavesForClassTeacher(userId);
+        setState(() {
+          _leaveAppointments = appointments;
+        });
+      }
     } catch (e) {
-      // Error handled in service
-    } finally {
-      setState(() => _isUpdatingClassSection = false);
+      print('Error loading leave appointments: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading leave appointments: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -202,7 +193,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
           ),
           const SizedBox(height: 16),
           Text(
-            teacherName,
+            '${teacherData?['name']}',
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -240,9 +231,18 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
           children: [
             _buildSectionHeader('Personal Information', Icons.info_outline),
             const SizedBox(height: 16),
-            _buildInfoItem('Education', teacherData?['education'], Icons.school),
-            _buildInfoItem('Email', teacherData?['email'], Icons.email),
-            _buildInfoItem('Phone', teacherData?['phone'], Icons.phone),
+            _buildInfoItem(
+                'Education',
+                teacherData?['education']?.toString() ?? 'Not specified',
+                Icons.school),
+            _buildInfoItem(
+                'Email',
+                teacherData?['email']?.toString() ?? 'Not specified',
+                Icons.email),
+            _buildInfoItem(
+                'Phone',
+                teacherData?['phone']?.toString() ?? 'Not specified',
+                Icons.phone),
           ],
         ),
       ),
@@ -250,7 +250,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   }
 
   Widget _buildClassesSection() {
-    final List classesList = teacherData?['classes'] ?? [];
+    final classes = teacherData?['classes'] as List<dynamic>? ?? [];
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -259,106 +259,30 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Section header with edit icon
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildSectionHeader('Classes Teaching', Icons.class_),
-                IconButton(
-                  icon: Icon(_isAddingClass ? Icons.close : Icons.add, color: Colors.blue[700]),
-                  tooltip: _isAddingClass ? 'Cancel' : 'Add Class',
-                  onPressed: () {
-                    setState(() {
-                      _isAddingClass = !_isAddingClass;
-                      _newClass = null;
-                      _newSection = null;
-                    });
-                  },
-                ),
-              ],
-            ),
+            _buildSectionHeader('Classes Teaching', Icons.class_),
             const SizedBox(height: 16),
-            // Show chips for all classes
-            if (classesList.isNotEmpty)
+            if (classes.isEmpty)
+              const Text('No classes assigned',
+                  style: TextStyle(color: Colors.grey))
+            else
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: [
-                  ...classesList.map<Widget>((cls) {
-                    final className = cls['class']?.toString() ?? '';
-                    final section = cls['section']?.toString() ?? '';
-                    return Chip(
-                      label: Text('Class $className - Section $section'),
-                      backgroundColor: Colors.blue.shade50,
-                      labelStyle: TextStyle(color: Colors.blue.shade700),
-                      deleteIcon: Icon(Icons.close, color: Colors.red),
-                      onDeleted: () async {
-                        final teacherId = await AuthService.getUserId();
-                        if (teacherId == null) return;
-                        await TeacherProfileService().removeTeacherClass(
-                          teacherId: teacherId,
-                          className: className,
-                          section: section,
-                        );
-                        await fetchTeacherProfile();
-                      },
-                    );
-                  }).toList(),
-                ],
-              ),
-            if (classesList.isEmpty)
-              const Text('No classes assigned yet.', style: TextStyle(color: Colors.grey)),
-            // Add class form
-            if (_isAddingClass)
-              Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: Row(
-                  children: [
-                    DropdownButton<String>(
-                      value: _newClass,
-                      hint: const Text('Class'),
-                      items: _classes.map((c) => DropdownMenuItem(
-                        value: c,
-                        child: Text('Class $c'),
-                      )).toList(),
-                      onChanged: (val) => setState(() => _newClass = val),
+                children: List.generate(
+                  classes.length,
+                  (index) => Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.blue.shade200),
                     ),
-                    const SizedBox(width: 16),
-                    DropdownButton<String>(
-                      value: _newSection,
-                      hint: const Text('Section'),
-                      items: _sections.map((s) => DropdownMenuItem(
-                        value: s,
-                        child: Text('Section $s'),
-                      )).toList(),
-                      onChanged: (val) => setState(() => _newSection = val),
+                    child: Text(
+                      classes[index].toString(),
+                      style: TextStyle(color: Colors.blue.shade700),
                     ),
-                    const SizedBox(width: 16),
-                    ElevatedButton(
-                      onPressed: _newClass == null || _newSection == null
-                          ? null
-                          : () async {
-                              final teacherId = await AuthService.getUserId();
-                              if (teacherId == null) return;
-                              await TeacherProfileService().addTeacherClass(
-                                teacherId: teacherId,
-                                className: _newClass!,
-                                section: _newSection!,
-                              );
-                              setState(() {
-                                _isAddingClass = false;
-                                _newClass = null;
-                                _newSection = null;
-                              });
-                              await fetchTeacherProfile();
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue[700],
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      ),
-                      child: const Text('Add'),
-                    ),
-                  ],
+                  ),
                 ),
               ),
           ],
@@ -368,6 +292,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
   }
 
   Widget _buildAchievementsSection() {
+    final achievements = teacherData?['achievements'] as List<dynamic>? ?? [];
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -378,26 +303,30 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
           children: [
             _buildSectionHeader('Achievements', Icons.emoji_events),
             const SizedBox(height: 16),
-            ...List.generate(
-              teacherData?['achievements'].length,
-              (index) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.check_circle,
-                        color: Colors.green.shade600, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        teacherData?['achievements'][index],
-                        style: const TextStyle(fontSize: 14),
+            if (achievements.isEmpty)
+              const Text('No achievements recorded',
+                  style: TextStyle(color: Colors.grey))
+            else
+              ...List.generate(
+                achievements.length,
+                (index) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.check_circle,
+                          color: Colors.green.shade600, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          achievements[index].toString(),
+                          style: const TextStyle(fontSize: 14),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -412,7 +341,14 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
           _showLeaveAppointmentsDialog(context);
         }),
         _buildMenuItem('Edit Profile', Icons.edit),
-        _buildMenuItem('Teaching Resources', Icons.book),
+        _buildMenuItem('Teaching Resources', Icons.book, onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const TeacherResourcesScreen(),
+            ),
+          );
+        }),
         _buildMenuItem('Help & Support', Icons.help_outline),
         const SizedBox(height: 10),
         _buildMenuItem(
@@ -626,7 +562,7 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
     );
   }
 
-  Widget _buildInfoItem(String label, String value, IconData icon) {
+  Widget _buildInfoItem(String label, dynamic value, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -640,24 +576,26 @@ class _TeacherProfilePageState extends State<TeacherProfilePage> {
             child: Icon(icon, color: Colors.blue.shade700, size: 18),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
                 ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                Text(
+                  value?.toString() ?? 'Not specified',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
